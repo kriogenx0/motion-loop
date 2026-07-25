@@ -16,6 +16,12 @@ struct CheckInSheet: View {
                 Text(occurrence.activity?.name ?? "Activity")
                     .font(.title2.bold())
 
+                if let targetDescription = occurrence.activity?.targetDescription {
+                    Text(targetDescription)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+
                 Text("Did you complete it?")
                     .foregroundStyle(.secondary)
 

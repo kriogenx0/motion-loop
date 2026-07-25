@@ -22,9 +22,15 @@ struct TodayOccurrenceRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(occurrence.activity?.name ?? "Activity")
                         .font(.body.weight(.medium))
-                    Text(timeRangeText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        Text(timeRangeText)
+                        if let targetDescription = occurrence.activity?.targetDescription {
+                            Text("\u{00b7}")
+                            Text(targetDescription)
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
 
                 Spacer()

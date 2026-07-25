@@ -19,12 +19,21 @@ struct AddEditActivityView: View {
     @State private var rules: [RuleDraft]
     @State private var isPresentingRuleEditor = false
 
+    @State private var targetType: ActivityTargetType
+    @State private var targetDurationMinutes: Int
+    @State private var targetSets: Int
+    @State private var targetReps: Int
+
     init(activity: Activity?) {
         self.activity = activity
         _name = State(initialValue: activity?.name ?? "")
         _rules = State(initialValue: (activity?.scheduleRules ?? [])
             .sorted { ($0.weekday, $0.hour, $0.minute) < ($1.weekday, $1.hour, $1.minute) }
             .map { RuleDraft(id: $0.id, persistedID: $0.id, weekday: $0.weekday, hour: $0.hour, minute: $0.minute) })
+        _targetType = State(initialValue: activity?.targetType ?? .none)
+        _targetDurationMinutes = State(initialValue: activity?.targetDurationMinutes ?? 10)
+        _targetSets = State(initialValue: activity?.targetSets ?? 3)
+        _targetReps = State(initialValue: activity?.targetReps ?? 10)
     }
 
     private var isSaveDisabled: Bool {
@@ -60,6 +69,25 @@ struct AddEditActivityView: View {
                 Section("Exercise") {
                     TextField("Name", text: $name)
                     presetPicker
+                }
+
+                Section("Target") {
+                    Picker("Type", selection: $targetType) {
+                        Text("None").tag(ActivityTargetType.none)
+                        Text("Duration").tag(ActivityTargetType.duration)
+                        Text("Sets & Reps").tag(ActivityTargetType.setsReps)
+                    }
+                    .pickerStyle(.segmented)
+
+                    switch targetType {
+                    case .none:
+                        EmptyView()
+                    case .duration:
+                        Stepper("Duration: \(targetDurationMinutes) min", value: $targetDurationMinutes, in: 1...240)
+                    case .setsReps:
+                        Stepper("Sets: \(targetSets)", value: $targetSets, in: 1...20)
+                        Stepper("Reps: \(targetReps)", value: $targetReps, in: 1...100)
+                    }
                 }
 
                 Section("Schedule") {
@@ -112,7 +140,7 @@ struct AddEditActivityView: View {
                 HStack(spacing: 10) {
                     ForEach(suggestedPresets) { preset in
                         Button {
-                            name = preset.name
+                            applyPreset(preset)
                         } label: {
                             VStack(spacing: 4) {
                                 Image(systemName: preset.symbolName).font(.title3)
@@ -132,6 +160,18 @@ struct AddEditActivityView: View {
         }
     }
 
+    private func applyPreset(_ preset: PresetActivity) {
+        name = preset.name
+        if let duration = preset.defaultDurationMinutes {
+            targetType = .duration
+            targetDurationMinutes = duration
+        } else if let sets = preset.defaultSets, let reps = preset.defaultReps {
+            targetType = .setsReps
+            targetSets = sets
+            targetReps = reps
+        }
+    }
+
     private func save() {
         let resolvedSymbol = resolvedSymbolName
         let targetActivity: Activity
@@ -142,6 +182,22 @@ struct AddEditActivityView: View {
         } else {
             targetActivity = Activity(name: name, symbolName: resolvedSymbol)
             modelContext.insert(targetActivity)
+        }
+
+        targetActivity.targetType = targetType
+        switch targetType {
+        case .none:
+            targetActivity.targetDurationMinutes = nil
+            targetActivity.targetSets = nil
+            targetActivity.targetReps = nil
+        case .duration:
+            targetActivity.targetDurationMinutes = targetDurationMinutes
+            targetActivity.targetSets = nil
+            targetActivity.targetReps = nil
+        case .setsReps:
+            targetActivity.targetDurationMinutes = nil
+            targetActivity.targetSets = targetSets
+            targetActivity.targetReps = targetReps
         }
 
         let keptPersistedIDs = Set(rules.compactMap(\.persistedID))

@@ -76,7 +76,17 @@ private struct ActivityRow: View {
                 .foregroundStyle(.tint)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
-                Text(activity.name).font(.body.weight(.medium))
+                HStack(spacing: 6) {
+                    Text(activity.name).font(.body.weight(.medium))
+                    if let targetDescription = activity.targetDescription {
+                        Text(targetDescription)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.secondary.opacity(0.15), in: Capsule())
+                    }
+                }
                 Text(scheduleSummary).font(.caption).foregroundStyle(.secondary)
             }
         }
