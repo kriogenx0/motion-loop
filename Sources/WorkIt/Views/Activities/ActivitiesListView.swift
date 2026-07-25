@@ -65,18 +65,8 @@ private struct ActivityRow: View {
     private var scheduleSummary: String {
         let enabledRules = activity.scheduleRules.filter(\.isEnabled)
         guard !enabledRules.isEmpty else { return "No schedule set" }
-        let symbols = DateFormatter().shortWeekdaySymbols ?? []
-        let sorted = enabledRules.sorted { ($0.weekday, $0.hour, $0.minute) < ($1.weekday, $1.hour, $1.minute) }
-        return sorted.map { rule -> String in
-            let dayName = symbols.indices.contains(rule.weekday - 1) ? symbols[rule.weekday - 1] : "?"
-            var components = DateComponents()
-            components.hour = rule.hour
-            components.minute = rule.minute
-            let time = Calendar.current.date(from: components) ?? .now
-            let formatter = DateFormatter()
-            formatter.timeStyle = .short
-            return "\(dayName) \(formatter.string(from: time))"
-        }.joined(separator: ", ")
+        let groups = ScheduleDisplay.groups(from: enabledRules.map { ($0.weekday, $0.hour, $0.minute) })
+        return groups.map(\.displayText).joined(separator: ", ")
     }
 
     var body: some View {

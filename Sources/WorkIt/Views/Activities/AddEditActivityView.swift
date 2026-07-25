@@ -7,19 +7,6 @@ private struct RuleDraft: Identifiable {
     var weekday: Int
     var hour: Int
     var minute: Int
-
-    private static let weekdaySymbols = DateFormatter().shortWeekdaySymbols ?? []
-
-    var displayText: String {
-        let dayName = Self.weekdaySymbols.indices.contains(weekday - 1) ? Self.weekdaySymbols[weekday - 1] : "?"
-        var components = DateComponents()
-        components.hour = hour
-        components.minute = minute
-        let time = Calendar.current.date(from: components) ?? .now
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return "\(dayName) at \(formatter.string(from: time))"
-    }
 }
 
 struct AddEditActivityView: View {
@@ -46,6 +33,10 @@ struct AddEditActivityView: View {
         name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || rules.isEmpty
     }
 
+    private var scheduleGroups: [ScheduleTimeGroup] {
+        ScheduleDisplay.groups(from: rules.map { ($0.weekday, $0.hour, $0.minute) })
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -60,11 +51,14 @@ struct AddEditActivityView: View {
                     if rules.isEmpty {
                         Text("No schedule yet -- add at least one.").foregroundStyle(.secondary)
                     }
-                    ForEach(rules) { rule in
-                        Text(rule.displayText)
+                    ForEach(scheduleGroups) { group in
+                        Text(group.displayText)
                     }
                     .onDelete { indexSet in
-                        rules.remove(atOffsets: indexSet)
+                        let groupsToRemove = indexSet.map { scheduleGroups[$0] }
+                        rules.removeAll { rule in
+                            groupsToRemove.contains { $0.hour == rule.hour && $0.minute == rule.minute }
+                        }
                     }
                     Button("Add Schedule") {
                         isPresentingRuleEditor = true
@@ -81,9 +75,15 @@ struct AddEditActivityView: View {
                 }
             }
             .sheet(isPresented: $isPresentingRuleEditor) {
-                ScheduleRuleEditorView { weekdays, hour, minute in
+                ScheduleRuleEditorView { weekdays, times in
                     for weekday in weekdays.sorted() {
-                        rules.append(RuleDraft(id: UUID(), persistedID: nil, weekday: weekday, hour: hour, minute: minute))
+                        for time in times {
+                            let alreadyExists = rules.contains {
+                                $0.weekday == weekday && $0.hour == time.hour && $0.minute == time.minute
+                            }
+                            guard !alreadyExists else { continue }
+                            rules.append(RuleDraft(id: UUID(), persistedID: nil, weekday: weekday, hour: time.hour, minute: time.minute))
+                        }
                     }
                 }
             }
