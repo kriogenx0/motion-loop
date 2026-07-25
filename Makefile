@@ -61,7 +61,7 @@ dev: _check-deps _check-runtime _generate _ensure-device
 	xcodebuild build -project $(PROJECT) -scheme $(SCHEME) -configuration Debug \
 		-destination "id=$$SIM_UDID" -derivedDataPath $(DERIVED_DATA); \
 	xcrun simctl bootstatus "$$SIM_UDID" -b >/dev/null 2>&1 || xcrun simctl boot "$$SIM_UDID" || true; \
-	open -a Simulator; \
+	open -a Simulator --args -CurrentDeviceUDID "$$SIM_UDID"; \
 	xcrun simctl install "$$SIM_UDID" "$(APP_PATH)"; \
 	xcrun simctl launch "$$SIM_UDID" $(BUNDLE_ID); \
 	echo "WorkIt launched on $(SIM_DEVICE_NAME)."
