@@ -1,24 +1,31 @@
 import Foundation
 
-struct PresetActivity: Identifiable, Hashable {
+struct PresetActivity: Identifiable, Hashable, Decodable {
     var id: String { name }
     let name: String
     let symbolName: String
+    let featured: Bool
+    let defaultDurationMinutes: Int?
+    let defaultSets: Int?
+    let defaultReps: Int?
 }
 
+/// The user can always type any activity name they like -- this list only
+/// powers autocomplete suggestions as they type. Kept as a bundled static JSON
+/// file (not hardcoded Swift) so the list can grow without touching code.
 enum PresetActivities {
-    static let all: [PresetActivity] = [
-        PresetActivity(name: "Push-ups", symbolName: "figure.strengthtraining.traditional"),
-        PresetActivity(name: "Squats", symbolName: "figure.squats"),
-        PresetActivity(name: "Plank", symbolName: "figure.core.training"),
-        PresetActivity(name: "Running", symbolName: "figure.run"),
-        PresetActivity(name: "Cycling", symbolName: "figure.outdoor.cycle"),
-        PresetActivity(name: "Yoga", symbolName: "figure.yoga"),
-        PresetActivity(name: "Stretching", symbolName: "figure.flexibility"),
-        PresetActivity(name: "Jumping Jacks", symbolName: "figure.jumprope"),
-        PresetActivity(name: "Pull-ups", symbolName: "figure.strengthtraining.functional"),
-        PresetActivity(name: "Walking", symbolName: "figure.walk"),
-    ]
-
+    static let all: [PresetActivity] = loadPresets()
+    static let featured: [PresetActivity] = all.filter(\.featured)
     static let customSymbolName = "star.fill"
+
+    private static func loadPresets() -> [PresetActivity] {
+        guard
+            let url = Bundle.main.url(forResource: "PresetActivities", withExtension: "json"),
+            let data = try? Data(contentsOf: url),
+            let presets = try? JSONDecoder().decode([PresetActivity].self, from: data)
+        else {
+            return []
+        }
+        return presets
+    }
 }

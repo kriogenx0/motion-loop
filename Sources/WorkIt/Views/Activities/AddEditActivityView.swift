@@ -16,14 +16,12 @@ struct AddEditActivityView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var name: String
-    @State private var symbolName: String
     @State private var rules: [RuleDraft]
     @State private var isPresentingRuleEditor = false
 
     init(activity: Activity?) {
         self.activity = activity
         _name = State(initialValue: activity?.name ?? "")
-        _symbolName = State(initialValue: activity?.symbolName ?? PresetActivities.all[0].symbolName)
         _rules = State(initialValue: (activity?.scheduleRules ?? [])
             .sorted { ($0.weekday, $0.hour, $0.minute) < ($1.weekday, $1.hour, $1.minute) }
             .map { RuleDraft(id: $0.id, persistedID: $0.id, weekday: $0.weekday, hour: $0.hour, minute: $0.minute) })
@@ -37,14 +35,31 @@ struct AddEditActivityView: View {
         ScheduleDisplay.groups(from: rules.map { ($0.weekday, $0.hour, $0.minute) })
     }
 
+    /// The user can type any name they like -- this only resolves an icon when
+    /// the name exactly matches a known preset. Falls back to the activity's
+    /// existing icon (when editing) so renaming never silently changes it.
+    private var resolvedSymbolName: String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let match = PresetActivities.all.first(where: { $0.name.localizedCaseInsensitiveCompare(trimmed) == .orderedSame }) {
+            return match.symbolName
+        }
+        return activity?.symbolName ?? PresetActivities.customSymbolName
+    }
+
+    /// Autocomplete suggestions: a curated featured set when the field is empty,
+    /// narrowing to substring matches across the full static list as the user types.
+    private var suggestedPresets: [PresetActivity] {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return PresetActivities.featured }
+        return PresetActivities.all.filter { $0.name.localizedCaseInsensitiveContains(trimmed) }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section("Exercise") {
-                    if activity == nil {
-                        presetPicker
-                    }
                     TextField("Name", text: $name)
+                    presetPicker
                 }
 
                 Section("Schedule") {
@@ -90,36 +105,42 @@ struct AddEditActivityView: View {
         }
     }
 
+    @ViewBuilder
     private var presetPicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(PresetActivities.all) { preset in
-                    Button {
-                        name = preset.name
-                        symbolName = preset.symbolName
-                    } label: {
-                        VStack(spacing: 4) {
-                            Image(systemName: preset.symbolName).font(.title3)
-                            Text(preset.name).font(.caption2)
+        if !suggestedPresets.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(suggestedPresets) { preset in
+                        Button {
+                            name = preset.name
+                        } label: {
+                            VStack(spacing: 4) {
+                                Image(systemName: preset.symbolName).font(.title3)
+                                Text(preset.name).font(.caption2)
+                            }
+                            .frame(width: 72)
                         }
-                        .frame(width: 64)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(
+                            name.localizedCaseInsensitiveCompare(preset.name) == .orderedSame
+                                ? Color.accentColor : Color.primary
+                        )
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(symbolName == preset.symbolName && name == preset.name ? Color.accentColor : Color.primary)
                 }
+                .padding(.vertical, 4)
             }
-            .padding(.vertical, 4)
         }
     }
 
     private func save() {
+        let resolvedSymbol = resolvedSymbolName
         let targetActivity: Activity
         if let activity {
             targetActivity = activity
             targetActivity.name = name
-            targetActivity.symbolName = symbolName
+            targetActivity.symbolName = resolvedSymbol
         } else {
-            targetActivity = Activity(name: name, symbolName: symbolName)
+            targetActivity = Activity(name: name, symbolName: resolvedSymbol)
             modelContext.insert(targetActivity)
         }
 
