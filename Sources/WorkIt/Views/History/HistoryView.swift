@@ -13,9 +13,10 @@ struct HistoryView: View {
     @State private var mode: HistoryMode = .week
     @State private var selectedWeekAnchor = Date.now
     @State private var selectedMonthAnchor = Date.now
+    @State private var path = NavigationPath()
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 Section {
                     Picker("View", selection: $mode) {
@@ -31,7 +32,11 @@ struct HistoryView: View {
                 case .week:
                     WeekHistoryContent(allOccurrences: allOccurrences, selectedWeekAnchor: $selectedWeekAnchor)
                 case .month:
-                    MonthHistoryContent(allOccurrences: allOccurrences, selectedMonthAnchor: $selectedMonthAnchor)
+                    MonthHistoryContent(
+                        allOccurrences: allOccurrences,
+                        selectedMonthAnchor: $selectedMonthAnchor,
+                        onSelectDay: { day in path.append(day) }
+                    )
                 }
             }
             .navigationTitle("History")

@@ -2,12 +2,12 @@ import SwiftUI
 import SwiftData
 
 /// Section content for "Month" mode -- a calendar grid so missed days are
-/// visible at a glance across the whole month, each day tappable (via
-/// `navigationDestination(for: Date.self)`, wired up by HistoryView) into
-/// DayDetailView.
+/// visible at a glance across the whole month, each day tappable into
+/// DayDetailView via `onSelectDay`.
 struct MonthHistoryContent: View {
     let allOccurrences: [ExerciseOccurrence]
     @Binding var selectedMonthAnchor: Date
+    var onSelectDay: (Date) -> Void
 
     private var calendar: Calendar { .current }
 
@@ -79,7 +79,7 @@ struct MonthHistoryContent: View {
         }
 
         Section {
-            MonthCalendarView(daySummaries: daySummaries, calendar: calendar)
+            MonthCalendarView(daySummaries: daySummaries, calendar: calendar, onSelectDay: onSelectDay)
                 .padding(.vertical, 4)
         }
 
