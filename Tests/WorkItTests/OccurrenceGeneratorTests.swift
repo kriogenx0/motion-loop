@@ -49,6 +49,32 @@ final class OccurrenceGeneratorTests: XCTestCase {
         XCTAssertTrue(secondPass.isEmpty)
     }
 
+    func testNeverGeneratesASlotAtOrBeforeReferenceDate() {
+        // Creating an "every day at 7am" activity at 3pm must not generate
+        // today's 7am slot -- that moment passed before the activity existed,
+        // and it must never show up as an immediate "missed" occurrence.
+        let now = date(2025, 6, 4, 15, 0) // Wednesday 3pm
+        let rule = ScheduleRuleSnapshot(ruleID: UUID(), activityID: UUID(), weekday: 4, hour: 7, minute: 0, windowDurationMinutes: 60)
+
+        let planned = OccurrenceGenerator.generateOccurrences(
+            for: [rule], existingKeys: [], referenceDate: now, horizonDays: 14, calendar: calendar
+        )
+
+        XCTAssertTrue(planned.allSatisfy { $0.scheduledDate > now })
+        XCTAssertFalse(planned.contains { calendar.isDate($0.scheduledDate, inSameDayAs: now) })
+    }
+
+    func testStillGeneratesTodayWhenRuleTimeHasNotYetPassed() {
+        let now = date(2025, 6, 4, 15, 0) // Wednesday 3pm
+        let rule = ScheduleRuleSnapshot(ruleID: UUID(), activityID: UUID(), weekday: 4, hour: 18, minute: 0, windowDurationMinutes: 60)
+
+        let planned = OccurrenceGenerator.generateOccurrences(
+            for: [rule], existingKeys: [], referenceDate: now, horizonDays: 14, calendar: calendar
+        )
+
+        XCTAssertTrue(planned.contains { calendar.isDate($0.scheduledDate, inSameDayAs: now) })
+    }
+
     func testMultipleRulesGenerateIndependently() {
         let reference = date(2025, 6, 1, 0, 0)
         let mondayRule = ScheduleRuleSnapshot(ruleID: UUID(), activityID: UUID(), weekday: 2, hour: 7, minute: 0, windowDurationMinutes: 60)

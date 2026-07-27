@@ -29,13 +29,16 @@ enum OccurrenceGenerator {
         calendar: Calendar = .current
     ) -> [PlannedOccurrence] {
         let horizonEnd = calendar.date(byAdding: .day, value: horizonDays, to: referenceDate) ?? referenceDate
-        let searchStart = calendar.date(byAdding: .day, value: -1, to: referenceDate) ?? referenceDate
 
         var planned: [PlannedOccurrence] = []
         for rule in rules {
+            // Strictly after `referenceDate` (not shifted back a day) -- a rule
+            // whose time-of-day already passed today must never generate today's
+            // slot, otherwise a newly-added activity immediately shows a "missed"
+            // occurrence for a moment that existed before the activity did.
             let candidates = ScheduleMath.nextOccurrenceDates(
                 for: rule,
-                after: searchStart,
+                after: referenceDate,
                 count: horizonDays + 1,
                 calendar: calendar
             )
