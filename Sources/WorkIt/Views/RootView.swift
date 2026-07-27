@@ -14,7 +14,7 @@ struct RootView: View {
                 .tabItem { Label("Activities", systemImage: "figure.run") }
                 .tag(AppTab.activities)
 
-            WeeklySummaryView()
+            HistoryView()
                 .tabItem { Label("History", systemImage: "calendar") }
                 .tag(AppTab.history)
         }
