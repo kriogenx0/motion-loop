@@ -63,6 +63,28 @@ final class ScheduleMathTests: XCTestCase {
         XCTAssertEqual(end.timeIntervalSince(start), 3600)
     }
 
+    func testAddingMinutesWithinSameHour() {
+        let result = ScheduleMath.addingMinutes(30, toWeekday: 4, hour: 7, minute: 0, calendar: calendar)
+        XCTAssertEqual(result.weekday, 4)
+        XCTAssertEqual(result.hour, 7)
+        XCTAssertEqual(result.minute, 30)
+    }
+
+    func testAddingMinutesRollsOverToNextHour() {
+        let result = ScheduleMath.addingMinutes(30, toWeekday: 4, hour: 7, minute: 45, calendar: calendar)
+        XCTAssertEqual(result.weekday, 4)
+        XCTAssertEqual(result.hour, 8)
+        XCTAssertEqual(result.minute, 15)
+    }
+
+    func testAddingMinutesRollsOverToNextWeekday() {
+        // Saturday (weekday 7) 23:45 + 30 min -> Sunday (weekday 1) 00:15
+        let result = ScheduleMath.addingMinutes(30, toWeekday: 7, hour: 23, minute: 45, calendar: calendar)
+        XCTAssertEqual(result.weekday, 1)
+        XCTAssertEqual(result.hour, 0)
+        XCTAssertEqual(result.minute, 15)
+    }
+
     func testNextOccurrenceDatesAcrossSpringForwardStaysMonotonicAndOnWeekday() {
         // US spring-forward in 2025 is March 9. Ask for Sundays (weekday=1) at 2:30am,
         // a wall-clock time that doesn't exist on the transition day itself.

@@ -55,4 +55,36 @@ enum ScheduleMath {
         calendar.date(byAdding: .minute, value: durationMinutes, to: scheduledDate)
             ?? scheduledDate.addingTimeInterval(TimeInterval(durationMinutes * 60))
     }
+
+    /// Adds `minutes` to a bare (weekday, hour, minute) -- used to compute a
+    /// reminder trigger time from a rule's time-of-day. Handles hour/day rollover
+    /// (and wrapping Saturday -> Sunday) via real Calendar arithmetic on a stable
+    /// anchor week rather than manual mod math.
+    static func addingMinutes(
+        _ minutes: Int,
+        toWeekday weekday: Int,
+        hour: Int,
+        minute: Int,
+        calendar: Calendar = .current
+    ) -> (weekday: Int, hour: Int, minute: Int) {
+        // January 5, 2025 is a Sunday (weekday 1); weekday N is that anchor week's
+        // (N-1)th day, so this works for any weekday 1...7 without special-casing.
+        var components = DateComponents()
+        components.year = 2025
+        components.month = 1
+        components.day = 5 + (weekday - 1)
+        components.hour = hour
+        components.minute = minute
+        guard
+            let anchor = calendar.date(from: components),
+            let shifted = calendar.date(byAdding: .minute, value: minutes, to: anchor)
+        else {
+            return (weekday, hour, minute)
+        }
+        return (
+            calendar.component(.weekday, from: shifted),
+            calendar.component(.hour, from: shifted),
+            calendar.component(.minute, from: shifted)
+        )
+    }
 }

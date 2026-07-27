@@ -12,11 +12,28 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         self.modelContainer = modelContainer
     }
 
+    /// Best-effort suppression for the 30-minute reminder: if the occurrence was
+    /// already answered (e.g. via the first notification's action buttons) and
+    /// the app happens to be running to receive this callback, skip presenting
+    /// it. Local notifications have no server behind them, so this can't help
+    /// if the app was fully terminated between the two triggers -- an accepted
+    /// limitation.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        [.banner, .sound, .badge]
+        let userInfo = notification.request.content.userInfo
+        if let ruleIDString = userInfo["ruleID"] as? String, let ruleID = UUID(uuidString: ruleIDString) {
+            let context = ModelContext(modelContainer)
+            let dayStart = Calendar.current.startOfDay(for: .now)
+            let descriptor = FetchDescriptor<ExerciseOccurrence>(
+                predicate: #Predicate { $0.sourceRuleID == ruleID && $0.scheduledDate >= dayStart }
+            )
+            if let existing = try? context.fetch(descriptor).first, existing.status != .pending {
+                return []
+            }
+        }
+        return [.banner, .sound, .badge]
     }
 
     func userNotificationCenter(
