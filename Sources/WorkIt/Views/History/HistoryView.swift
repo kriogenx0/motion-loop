@@ -4,6 +4,7 @@ import SwiftData
 private enum HistoryMode: String, CaseIterable, Identifiable {
     case week = "Week"
     case month = "Month"
+    case activity = "Activity"
     var id: String { rawValue }
 }
 
@@ -37,11 +38,16 @@ struct HistoryView: View {
                         selectedMonthAnchor: $selectedMonthAnchor,
                         onSelectDay: { day in path.append(day) }
                     )
+                case .activity:
+                    ActivityHistoryContent()
                 }
             }
             .navigationTitle("History")
             .navigationDestination(for: Date.self) { day in
                 DayDetailView(day: day)
+            }
+            .navigationDestination(for: Activity.self) { activity in
+                ActivityHistoryDetailView(activity: activity)
             }
         }
     }
