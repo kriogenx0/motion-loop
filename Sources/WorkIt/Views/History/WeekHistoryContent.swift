@@ -19,23 +19,11 @@ struct WeekHistoryContent: View {
     private var weekOccurrences: [SummarizableOccurrence] {
         allOccurrences
             .filter { weekInterval.contains($0.scheduledDate) }
-            .map {
-                SummarizableOccurrence(
-                    activityID: $0.activity?.id ?? UUID(),
-                    activityName: $0.activity?.name ?? "Activity",
-                    scheduledDate: $0.scheduledDate,
-                    windowEnd: $0.windowEnd,
-                    status: $0.status
-                )
-            }
+            .map { SummarizableOccurrence(scheduledDate: $0.scheduledDate, status: $0.status) }
     }
 
     private var daySummaries: [DaySummary] {
         WeeklyStats.daySummaries(for: weekOccurrences, in: weekInterval, now: .now, calendar: calendar)
-    }
-
-    private var activitySummaries: [ActivitySummary] {
-        WeeklyStats.activitySummaries(for: weekOccurrences)
     }
 
     private var weekRangeText: String {
@@ -74,20 +62,6 @@ struct WeekHistoryContent: View {
                     }
                 } else {
                     DaySummaryRow(summary: summary)
-                }
-            }
-        }
-
-        if !activitySummaries.isEmpty {
-            Section("By Activity") {
-                ForEach(activitySummaries) { summary in
-                    HStack {
-                        Text(summary.activityName)
-                        Spacer()
-                        Text("\(summary.completed)/\(summary.total) completed")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
                 }
             }
         }

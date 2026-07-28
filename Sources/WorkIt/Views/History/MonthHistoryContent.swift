@@ -19,23 +19,11 @@ struct MonthHistoryContent: View {
     private var monthOccurrences: [SummarizableOccurrence] {
         allOccurrences
             .filter { monthInterval.contains($0.scheduledDate) }
-            .map {
-                SummarizableOccurrence(
-                    activityID: $0.activity?.id ?? UUID(),
-                    activityName: $0.activity?.name ?? "Activity",
-                    scheduledDate: $0.scheduledDate,
-                    windowEnd: $0.windowEnd,
-                    status: $0.status
-                )
-            }
+            .map { SummarizableOccurrence(scheduledDate: $0.scheduledDate, status: $0.status) }
     }
 
     private var daySummaries: [DaySummary] {
         WeeklyStats.daySummaries(for: monthOccurrences, in: monthInterval, now: .now, calendar: calendar)
-    }
-
-    private var activitySummaries: [ActivitySummary] {
-        WeeklyStats.activitySummaries(for: monthOccurrences)
     }
 
     private var totalMissed: Int { daySummaries.reduce(0) { $0 + $1.missed } }
@@ -81,20 +69,6 @@ struct MonthHistoryContent: View {
         Section {
             MonthCalendarView(daySummaries: daySummaries, calendar: calendar, onSelectDay: onSelectDay)
                 .padding(.vertical, 4)
-        }
-
-        if !activitySummaries.isEmpty {
-            Section("By Activity") {
-                ForEach(activitySummaries) { summary in
-                    HStack {
-                        Text(summary.activityName)
-                        Spacer()
-                        Text("\(summary.completed)/\(summary.total) completed")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
         }
     }
 }

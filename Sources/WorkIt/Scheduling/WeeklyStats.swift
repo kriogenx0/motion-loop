@@ -9,21 +9,9 @@ struct DaySummary: Identifiable {
     let upcoming: Int
 }
 
-struct ActivitySummary: Identifiable {
-    var id: UUID { activityID }
-    let activityID: UUID
-    let activityName: String
-    let completed: Int
-    let missed: Int
-    let total: Int
-}
-
-/// Minimal occurrence view needed to build day/week summaries, decoupled from SwiftData.
+/// Minimal occurrence view needed to build day summaries, decoupled from SwiftData.
 struct SummarizableOccurrence {
-    let activityID: UUID
-    let activityName: String
     let scheduledDate: Date
-    let windowEnd: Date
     let status: OccurrenceStatus
 }
 
@@ -62,19 +50,5 @@ enum WeeklyStats {
             cursor = next
         }
         return days
-    }
-
-    static func activitySummaries(for occurrences: [SummarizableOccurrence]) -> [ActivitySummary] {
-        let grouped = Dictionary(grouping: occurrences, by: \.activityID)
-        return grouped.map { activityID, occs in
-            ActivitySummary(
-                activityID: activityID,
-                activityName: occs.first?.activityName ?? "",
-                completed: occs.filter { $0.status == .completed }.count,
-                missed: occs.filter { $0.status == .missed }.count,
-                total: occs.count
-            )
-        }
-        .sorted { $0.activityName < $1.activityName }
     }
 }
