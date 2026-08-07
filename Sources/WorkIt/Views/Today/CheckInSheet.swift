@@ -8,14 +8,14 @@ struct CheckInSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                Image(systemName: occurrence.activitySymbolName)
+                Image(systemName: occurrence.displayActivitySymbolName)
                     .font(.system(size: 56))
                     .foregroundStyle(.tint)
 
-                Text(occurrence.activityName)
+                Text(occurrence.displayActivityName)
                     .font(.title2.bold())
 
-                if let targetDescription = occurrence.activityTargetDescription {
+                if let targetDescription = occurrence.displayActivityTargetDescription {
                     Text(targetDescription)
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)

@@ -27,8 +27,8 @@ final class ExerciseOccurrence {
     /// renaming/re-iconing/deleting the Activity later never retroactively
     /// changes how an already-generated occurrence reads, in Today or History --
     /// mirrors the existing ruleWeekday/ruleHour/ruleMinute snapshot below.
-    var activityName: String
-    var activitySymbolName: String
+    var activityName: String = ""
+    var activitySymbolName: String = "figure.run"
     var activityTargetDescription: String?
 
     var activity: Activity?
@@ -66,5 +66,28 @@ final class ExerciseOccurrence {
     var status: OccurrenceStatus {
         get { OccurrenceStatus(rawValue: statusRaw) ?? .pending }
         set { statusRaw = newValue.rawValue }
+    }
+
+    /// Occurrences created before activity snapshots were introduced migrate
+    /// with an empty name. Fall back to their relationship so those existing
+    /// rows keep displaying correctly; newly generated and orphaned history
+    /// continue to use the immutable snapshot.
+    var displayActivityName: String {
+        guard !activityName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return activity?.name ?? "Activity"
+        }
+        return activityName
+    }
+
+    var displayActivitySymbolName: String {
+        activityName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? activity?.symbolName ?? activitySymbolName
+            : activitySymbolName
+    }
+
+    var displayActivityTargetDescription: String? {
+        activityName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? activity?.targetDescription
+            : activityTargetDescription
     }
 }

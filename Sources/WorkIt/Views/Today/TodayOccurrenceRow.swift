@@ -31,17 +31,17 @@ struct TodayOccurrenceRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
-                Image(systemName: occurrence.activitySymbolName)
+                Image(systemName: occurrence.displayActivitySymbolName)
                     .font(.title3)
                     .foregroundStyle(.tint)
                     .frame(width: 28)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(occurrence.activityName)
+                    Text(occurrence.displayActivityName)
                         .font(.body.weight(.medium))
                     HStack(spacing: 6) {
                         Text(timeRangeText)
-                        if let targetDescription = occurrence.activityTargetDescription {
+                        if let targetDescription = occurrence.displayActivityTargetDescription {
                             Text("\u{00b7}")
                             Text(targetDescription)
                         }
