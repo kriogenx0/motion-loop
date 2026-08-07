@@ -26,7 +26,7 @@ targets:
       - path: Sources/WorkIt
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.workit.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.simplex0.workit
         PRODUCT_NAME: WorkIt
     scheme:
       testTargets:

@@ -2,12 +2,15 @@
 
 PROJECT := WorkIt.xcodeproj
 SCHEME := WorkIt
-BUNDLE_ID := com.workit.app
+BUNDLE_ID := com.simplex0.workit
 DERIVED_DATA := .build/DerivedData
 SIM_DEVICE_NAME := WorkIt-Simulator
 APP_PATH := $(DERIVED_DATA)/Build/Products/Debug-iphonesimulator/WorkIt.app
+ARCHIVE_PATH := $(DERIVED_DATA)/Build/WorkIt.xcarchive
+EXPORT_PATH := $(DERIVED_DATA)/Build/Export
+EXPORT_OPTIONS_PLIST := $(DERIVED_DATA)/Build/ExportOptions.plist
 
-.PHONY: all setup dev build clean _check-deps _check-runtime _ensure-device _generate _git-init
+.PHONY: all setup dev build publish clean _check-deps _check-runtime _ensure-device _generate _git-init
 
 all: setup dev
 
@@ -72,6 +75,34 @@ build: _generate
 	@echo "NOTE: unsigned Release build validation only (Simulator SDK)."
 	@echo "This does NOT produce a signed, device-installable or App-Store-submittable artifact."
 	@echo "That requires a real DEVELOPMENT_TEAM plus 'xcodebuild archive' + export."
+
+publish: _generate
+	@if [ -z "$(DEVELOPMENT_TEAM)" ]; then \
+		echo "DEVELOPMENT_TEAM is not set."; \
+		echo "Find your Apple Developer Team ID at https://developer.apple.com/account (Membership details),"; \
+		echo "or in Xcode > Settings > Accounts > select your Apple ID > your team."; \
+		echo "A free Apple ID works too (Personal Team) -- just sign into Xcode with it first."; \
+		echo "Then run: make publish DEVELOPMENT_TEAM=XXXXXXXXXX"; \
+		exit 1; \
+	fi
+	@mkdir -p "$(dir $(EXPORT_OPTIONS_PLIST))"
+	@/usr/libexec/PlistBuddy -c "Add :method string development" \
+		-c "Add :teamID string $(DEVELOPMENT_TEAM)" \
+		-c "Add :signingStyle string automatic" \
+		-c "Add :compileBitcode bool false" \
+		"$(EXPORT_OPTIONS_PLIST)" >/dev/null 2>&1 || true
+	@rm -rf "$(ARCHIVE_PATH)" "$(EXPORT_PATH)"
+	xcodebuild archive -project $(PROJECT) -scheme $(SCHEME) -configuration Release \
+		-archivePath $(ARCHIVE_PATH) -destination 'generic/platform=iOS' \
+		DEVELOPMENT_TEAM=$(DEVELOPMENT_TEAM) CODE_SIGN_STYLE=Automatic
+	xcodebuild -exportArchive -archivePath $(ARCHIVE_PATH) -exportPath $(EXPORT_PATH) \
+		-exportOptionsPlist $(EXPORT_OPTIONS_PLIST)
+	@echo ""
+	@echo "IPA exported to $(EXPORT_PATH)/$(SCHEME).ipa"
+	@echo "NOTE: 'development' signing only installs on devices already registered to your team."
+	@echo "First time on a new phone: connect it, open the project in Xcode, and build+run to it once"
+	@echo "(Xcode auto-registers the device's UDID). After that this IPA will install on that device"
+	@echo "via Xcode's Devices window (+ button), Apple Configurator, or Finder."
 
 clean:
 	@[ -d "$(PROJECT)" ] && xcodebuild clean -project $(PROJECT) -scheme $(SCHEME) 2>/dev/null || true
