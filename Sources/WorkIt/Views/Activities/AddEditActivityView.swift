@@ -59,18 +59,21 @@ struct AddEditActivityView: View {
         NavigationStack {
             Form {
                 Section("Exercise") {
+                    HStack(spacing: 12) {
+                        Image(systemName: resolvedSymbolName)
+                            .foregroundStyle(.tint)
+                            .frame(width: 24)
+                        TextField("Exercise name", text: $name)
+                            .textInputAutocapitalization(.words)
+                            .submitLabel(.done)
+                    }
+
                     NavigationLink {
                         ExercisePickerView(excludingActivityID: activity?.id) { suggestion in
                             applySuggestion(suggestion)
                         }
                     } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: resolvedSymbolName)
-                                .foregroundStyle(.tint)
-                                .frame(width: 24)
-                            Text(name.isEmpty ? "Choose Exercise" : name)
-                                .foregroundStyle(name.isEmpty ? Color.secondary : Color.primary)
-                        }
+                        Label("Choose from Exercises", systemImage: "list.bullet")
                     }
                 }
 
