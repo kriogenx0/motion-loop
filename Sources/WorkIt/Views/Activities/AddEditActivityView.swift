@@ -9,23 +9,8 @@ private struct RuleDraft: Identifiable {
     var minute: Int
 }
 
-/// A name+icon+default-target suggestion, whether it comes from the bundled
-/// preset list or from an activity the user has typed in before.
-private struct ActivitySuggestion: Identifiable, Hashable {
-    var id: String { name.lowercased() }
-    let name: String
-    let symbolName: String
-    let defaultDurationMinutes: Int?
-    let defaultSets: Int?
-    let defaultReps: Int?
-}
-
 struct AddEditActivityView: View {
     let activity: Activity?
-
-    /// All activities ever entered (including archived) -- source of "you've
-    /// typed this before" suggestions, since we never hard-delete activities.
-    @Query private var pastActivities: [Activity]
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -70,50 +55,23 @@ struct AddEditActivityView: View {
         return activity?.symbolName ?? PresetActivities.customSymbolName
     }
 
-    /// Autocomplete suggestions: a curated featured set when the field is empty,
-    /// narrowing to substring matches across the full static list -- plus any
-    /// custom names the user has typed before -- as they type.
-    private var suggestedActivities: [ActivitySuggestion] {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let presetSuggestions = (trimmed.isEmpty ? PresetActivities.featured : PresetActivities.all.filter { $0.name.localizedCaseInsensitiveContains(trimmed) })
-            .map {
-                ActivitySuggestion(
-                    name: $0.name,
-                    symbolName: $0.symbolName,
-                    defaultDurationMinutes: $0.defaultDurationMinutes,
-                    defaultSets: $0.defaultSets,
-                    defaultReps: $0.defaultReps
-                )
-            }
-        guard !trimmed.isEmpty else { return presetSuggestions }
-
-        let presetNames = Set(PresetActivities.all.map { $0.name.lowercased() })
-        var seenCustomNames = Set<String>()
-        let customSuggestions = pastActivities
-            .filter { $0.id != activity?.id }
-            .sorted { $0.createdAt > $1.createdAt }
-            .filter { !presetNames.contains($0.name.lowercased()) }
-            .filter { $0.name.localizedCaseInsensitiveContains(trimmed) }
-            .compactMap { pastActivity -> ActivitySuggestion? in
-                guard seenCustomNames.insert(pastActivity.name.lowercased()).inserted else { return nil }
-                return ActivitySuggestion(
-                    name: pastActivity.name,
-                    symbolName: pastActivity.symbolName,
-                    defaultDurationMinutes: pastActivity.targetType == .duration ? pastActivity.targetDurationMinutes : nil,
-                    defaultSets: pastActivity.targetType == .setsReps ? pastActivity.targetSets : nil,
-                    defaultReps: pastActivity.targetType == .setsReps ? pastActivity.targetReps : nil
-                )
-            }
-
-        return presetSuggestions + customSuggestions
-    }
-
     var body: some View {
         NavigationStack {
             Form {
                 Section("Exercise") {
-                    TextField("Name", text: $name)
-                    presetPicker
+                    NavigationLink {
+                        ExercisePickerView(excludingActivityID: activity?.id) { suggestion in
+                            applySuggestion(suggestion)
+                        }
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: resolvedSymbolName)
+                                .foregroundStyle(.tint)
+                                .frame(width: 24)
+                            Text(name.isEmpty ? "Choose Exercise" : name)
+                                .foregroundStyle(name.isEmpty ? Color.secondary : Color.primary)
+                        }
+                    }
                 }
 
                 Section("Target") {
@@ -174,33 +132,6 @@ struct AddEditActivityView: View {
                         }
                     }
                 }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var presetPicker: some View {
-        if !suggestedActivities.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(suggestedActivities) { suggestion in
-                        Button {
-                            applySuggestion(suggestion)
-                        } label: {
-                            VStack(spacing: 4) {
-                                Image(systemName: suggestion.symbolName).font(.title3)
-                                Text(suggestion.name).font(.caption2)
-                            }
-                            .frame(width: 72)
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(
-                            name.localizedCaseInsensitiveCompare(suggestion.name) == .orderedSame
-                                ? Color.accentColor : Color.primary
-                        )
-                    }
-                }
-                .padding(.vertical, 4)
             }
         }
     }
