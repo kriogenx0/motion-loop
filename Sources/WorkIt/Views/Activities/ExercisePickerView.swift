@@ -3,9 +3,10 @@ import SwiftData
 
 /// Dedicated full-screen exercise picker: a search bar over the entire
 /// suggestion list (not just a featured subset -- this is the place to browse
-/// or search, unlike a quick inline row). The user can still enter any
-/// activity they like: typing something that doesn't match an existing
-/// suggestion surfaces a "Use "<text>"" row to confirm it as a custom entry.
+/// or search, unlike a quick inline row). Browsing/searching the existing list
+/// is the primary path -- an exercise "should already exist" here -- with
+/// "Add Custom Exercise" as the explicit fallback for one that doesn't,
+/// rather than typing into search silently offering to create one.
 struct ExercisePickerView: View {
     var excludingActivityID: UUID?
     var onSelect: (ActivitySuggestion) -> Void
@@ -15,6 +16,7 @@ struct ExercisePickerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
     @State private var selectedCategory: ExerciseCategory?
+    @State private var isPresentingCustomExerciseForm = false
 
     private var trimmedSearchText: String {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -37,26 +39,13 @@ struct ExercisePickerView: View {
         return results.filter { $0.name.localizedCaseInsensitiveContains(trimmedSearchText) }
     }
 
-    private var searchTextMatchesExistingSuggestion: Bool {
-        allSuggestions.contains { $0.name.localizedCaseInsensitiveCompare(trimmedSearchText) == .orderedSame }
-    }
-
     var body: some View {
         List {
-            if !trimmedSearchText.isEmpty && !searchTextMatchesExistingSuggestion {
-                Section {
-                    Button {
-                        select(ActivitySuggestion(
-                            name: trimmedSearchText,
-                            symbolName: PresetActivities.customSymbolName,
-                            category: .other,
-                            defaultDurationSeconds: nil,
-                            defaultSets: nil,
-                            defaultReps: nil
-                        ))
-                    } label: {
-                        Label("Use \"\(trimmedSearchText)\"", systemImage: "plus.circle")
-                    }
+            Section {
+                Button {
+                    isPresentingCustomExerciseForm = true
+                } label: {
+                    Label("Add Custom Exercise", systemImage: "plus.circle")
                 }
             }
 
@@ -74,7 +63,7 @@ struct ExercisePickerView: View {
 
             Section(trimmedSearchText.isEmpty ? "All Exercises" : "Results") {
                 if filteredSuggestions.isEmpty {
-                    Text("No matches -- keep typing to add it as a custom exercise.")
+                    Text("No matches -- use \"Add Custom Exercise\" above to create it.")
                         .foregroundStyle(.secondary)
                 }
                 ForEach(filteredSuggestions) { suggestion in
@@ -85,6 +74,18 @@ struct ExercisePickerView: View {
         .searchable(text: $searchText, prompt: "Search exercises")
         .navigationTitle("Choose Exercise")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $isPresentingCustomExerciseForm) {
+            CustomExerciseFormView(initialName: trimmedSearchText) { name, symbolName in
+                select(ActivitySuggestion(
+                    name: name,
+                    symbolName: symbolName,
+                    category: .other,
+                    defaultDurationSeconds: nil,
+                    defaultSets: nil,
+                    defaultReps: nil
+                ))
+            }
+        }
     }
 
     private var categoryFilterSection: some View {
@@ -137,5 +138,67 @@ struct ExercisePickerView: View {
     private func select(_ suggestion: ActivitySuggestion) {
         onSelect(suggestion)
         dismiss()
+    }
+}
+
+/// The one place name + icon are typed/picked together for an exercise that
+/// isn't in the list yet -- reached only via the explicit "Add Custom
+/// Exercise" button, never implicitly from typing in search.
+private struct CustomExerciseFormView: View {
+    let initialName: String
+    var onSave: (_ name: String, _ symbolName: String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var name: String
+    @State private var symbolName = PresetActivities.customSymbolName
+    @State private var isPresentingIconPicker = false
+
+    init(initialName: String, onSave: @escaping (_ name: String, _ symbolName: String) -> Void) {
+        self.initialName = initialName
+        self.onSave = onSave
+        _name = State(initialValue: initialName)
+    }
+
+    private var isSaveDisabled: Bool {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    HStack(spacing: 12) {
+                        Button {
+                            isPresentingIconPicker = true
+                        } label: {
+                            Image(systemName: symbolName)
+                                .foregroundStyle(.tint)
+                                .frame(width: 24)
+                        }
+                        .buttonStyle(.plain)
+                        TextField("Exercise name", text: $name)
+                            .textInputAutocapitalization(.words)
+                            .submitLabel(.done)
+                    }
+                }
+            }
+            .navigationTitle("Custom Exercise")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        onSave(name.trimmingCharacters(in: .whitespacesAndNewlines), symbolName)
+                        dismiss()
+                    }
+                    .disabled(isSaveDisabled)
+                }
+            }
+            .sheet(isPresented: $isPresentingIconPicker) {
+                IconPickerView(selection: $symbolName)
+            }
+        }
     }
 }

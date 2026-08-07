@@ -20,7 +20,6 @@ struct AddEditActivityView: View {
     @State private var symbolName: String
     @State private var rules: [RuleDraft]
     @State private var isPresentingRuleEditor = false
-    @State private var isPresentingIconPicker = false
     @State private var editingGroup: ScheduleTimeGroup?
     @State private var isPresentingDeleteConfirm = false
 
@@ -63,26 +62,18 @@ struct AddEditActivityView: View {
         NavigationStack {
             Form {
                 Section("Exercise") {
-                    HStack(spacing: 12) {
-                        Button {
-                            isPresentingIconPicker = true
-                        } label: {
-                            Image(systemName: symbolName)
-                                .foregroundStyle(.tint)
-                                .frame(width: 24)
-                        }
-                        .buttonStyle(.plain)
-                        TextField("Exercise name", text: $name)
-                            .textInputAutocapitalization(.words)
-                            .submitLabel(.done)
-                    }
-
                     NavigationLink {
                         ExercisePickerView(excludingActivityID: activity?.id) { suggestion in
                             applySuggestion(suggestion)
                         }
                     } label: {
-                        Label("Choose from Exercises", systemImage: "list.bullet")
+                        HStack(spacing: 12) {
+                            Image(systemName: symbolName)
+                                .foregroundStyle(.tint)
+                                .frame(width: 24)
+                            Text(name.isEmpty ? "Choose Exercise" : name)
+                                .foregroundStyle(name.isEmpty ? .secondary : .primary)
+                        }
                     }
                 }
 
@@ -154,9 +145,6 @@ struct AddEditActivityView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }.disabled(isSaveDisabled)
                 }
-            }
-            .sheet(isPresented: $isPresentingIconPicker) {
-                IconPickerView(selection: $symbolName)
             }
             .sheet(isPresented: $isPresentingRuleEditor) {
                 ScheduleRuleEditorView(
