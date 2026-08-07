@@ -4,6 +4,7 @@ struct PresetActivity: Identifiable, Hashable, Decodable {
     var id: String { name }
     let name: String
     let symbolName: String
+    let category: ExerciseCategory
     let featured: Bool
     let defaultDurationMinutes: Int?
     let defaultSets: Int?

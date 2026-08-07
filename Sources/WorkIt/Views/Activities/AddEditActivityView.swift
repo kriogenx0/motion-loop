@@ -7,6 +7,7 @@ private struct RuleDraft: Identifiable {
     var weekday: Int
     var hour: Int
     var minute: Int
+    var windowDurationMinutes: Int
 }
 
 struct AddEditActivityView: View {
@@ -16,22 +17,32 @@ struct AddEditActivityView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var name: String
+    @State private var symbolName: String
     @State private var rules: [RuleDraft]
     @State private var isPresentingRuleEditor = false
+    @State private var isPresentingIconPicker = false
+    @State private var editingGroup: ScheduleTimeGroup?
+    @State private var isPresentingDeleteConfirm = false
 
     @State private var targetType: ActivityTargetType
-    @State private var targetDurationMinutes: Int
+    @State private var targetDurationSeconds: Int
     @State private var targetSets: Int
     @State private var targetReps: Int
 
     init(activity: Activity?) {
         self.activity = activity
         _name = State(initialValue: activity?.name ?? "")
+        _symbolName = State(initialValue: activity?.symbolName ?? PresetActivities.customSymbolName)
         _rules = State(initialValue: (activity?.scheduleRules ?? [])
             .sorted { ($0.weekday, $0.hour, $0.minute) < ($1.weekday, $1.hour, $1.minute) }
-            .map { RuleDraft(id: $0.id, persistedID: $0.id, weekday: $0.weekday, hour: $0.hour, minute: $0.minute) })
+            .map {
+                RuleDraft(
+                    id: $0.id, persistedID: $0.id, weekday: $0.weekday, hour: $0.hour, minute: $0.minute,
+                    windowDurationMinutes: $0.windowDurationMinutes
+                )
+            })
         _targetType = State(initialValue: activity?.targetType ?? .none)
-        _targetDurationMinutes = State(initialValue: activity?.targetDurationMinutes ?? 10)
+        _targetDurationSeconds = State(initialValue: activity?.targetDurationSeconds ?? 600)
         _targetSets = State(initialValue: activity?.targetSets ?? 3)
         _targetReps = State(initialValue: activity?.targetReps ?? 10)
     }
@@ -44,15 +55,8 @@ struct AddEditActivityView: View {
         ScheduleDisplay.groups(from: rules.map { ($0.weekday, $0.hour, $0.minute) })
     }
 
-    /// The user can type any name they like -- this only resolves an icon when
-    /// the name exactly matches a known preset. Falls back to the activity's
-    /// existing icon (when editing) so renaming never silently changes it.
-    private var resolvedSymbolName: String {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let match = PresetActivities.all.first(where: { $0.name.localizedCaseInsensitiveCompare(trimmed) == .orderedSame }) {
-            return match.symbolName
-        }
-        return activity?.symbolName ?? PresetActivities.customSymbolName
+    private var durationLabel: String {
+        ActivityTargetFormatter.formatDuration(targetDurationSeconds)
     }
 
     var body: some View {
@@ -60,9 +64,14 @@ struct AddEditActivityView: View {
             Form {
                 Section("Exercise") {
                     HStack(spacing: 12) {
-                        Image(systemName: resolvedSymbolName)
-                            .foregroundStyle(.tint)
-                            .frame(width: 24)
+                        Button {
+                            isPresentingIconPicker = true
+                        } label: {
+                            Image(systemName: symbolName)
+                                .foregroundStyle(.tint)
+                                .frame(width: 24)
+                        }
+                        .buttonStyle(.plain)
                         TextField("Exercise name", text: $name)
                             .textInputAutocapitalization(.words)
                             .submitLabel(.done)
@@ -89,7 +98,9 @@ struct AddEditActivityView: View {
                     case .none:
                         EmptyView()
                     case .duration:
-                        Stepper("Duration: \(targetDurationMinutes) min", value: $targetDurationMinutes, in: 1...240)
+                        Stepper(value: $targetDurationSeconds, in: 15...14400, step: 15) {
+                            Text("Duration: \(durationLabel)")
+                        }
                     case .setsReps:
                         Stepper("Sets: \(targetSets)", value: $targetSets, in: 1...20)
                         Stepper("Reps: \(targetReps)", value: $targetReps, in: 1...100)
@@ -101,7 +112,19 @@ struct AddEditActivityView: View {
                         Text("No schedule yet -- add at least one.").foregroundStyle(.secondary)
                     }
                     ForEach(scheduleGroups) { group in
-                        Text(group.displayText)
+                        Button {
+                            editingGroup = group
+                            isPresentingRuleEditor = true
+                        } label: {
+                            HStack {
+                                Text(group.displayText)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Text(ScheduleDisplay.windowDurationLabel(windowDuration(for: group)))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                     }
                     .onDelete { indexSet in
                         let groupsToRemove = indexSet.map { scheduleGroups[$0] }
@@ -110,7 +133,16 @@ struct AddEditActivityView: View {
                         }
                     }
                     Button("Add Schedule") {
+                        editingGroup = nil
                         isPresentingRuleEditor = true
+                    }
+                }
+
+                if activity != nil {
+                    Section {
+                        Button("Delete Activity", role: .destructive) {
+                            isPresentingDeleteConfirm = true
+                        }
                     }
                 }
             }
@@ -123,27 +155,58 @@ struct AddEditActivityView: View {
                     Button("Save") { save() }.disabled(isSaveDisabled)
                 }
             }
+            .sheet(isPresented: $isPresentingIconPicker) {
+                IconPickerView(selection: $symbolName)
+            }
             .sheet(isPresented: $isPresentingRuleEditor) {
-                ScheduleRuleEditorView { weekdays, times in
+                ScheduleRuleEditorView(
+                    initial: editingGroup.map {
+                        ScheduleRuleEditorView.InitialValue(
+                            weekdays: $0.weekdays, hour: $0.hour, minute: $0.minute,
+                            windowDurationMinutes: windowDuration(for: $0)
+                        )
+                    }
+                ) { weekdays, times, windowDurationMinutes in
+                    if let editingGroup {
+                        rules.removeAll { $0.hour == editingGroup.hour && $0.minute == editingGroup.minute }
+                    }
                     for weekday in weekdays.sorted() {
                         for time in times {
                             let alreadyExists = rules.contains {
                                 $0.weekday == weekday && $0.hour == time.hour && $0.minute == time.minute
                             }
                             guard !alreadyExists else { continue }
-                            rules.append(RuleDraft(id: UUID(), persistedID: nil, weekday: weekday, hour: time.hour, minute: time.minute))
+                            rules.append(RuleDraft(
+                                id: UUID(), persistedID: nil, weekday: weekday, hour: time.hour, minute: time.minute,
+                                windowDurationMinutes: windowDurationMinutes
+                            ))
                         }
                     }
                 }
             }
+            .confirmationDialog(
+                "Delete this activity?",
+                isPresented: $isPresentingDeleteConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) { deleteActivity() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Completed and missed history is kept. Occurrences that haven't happened yet will be removed.")
+            }
         }
+    }
+
+    private func windowDuration(for group: ScheduleTimeGroup) -> Int {
+        rules.first { $0.hour == group.hour && $0.minute == group.minute }?.windowDurationMinutes ?? 60
     }
 
     private func applySuggestion(_ suggestion: ActivitySuggestion) {
         name = suggestion.name
-        if let duration = suggestion.defaultDurationMinutes {
+        symbolName = suggestion.symbolName
+        if let duration = suggestion.defaultDurationSeconds {
             targetType = .duration
-            targetDurationMinutes = duration
+            targetDurationSeconds = duration
         } else if let sets = suggestion.defaultSets, let reps = suggestion.defaultReps {
             targetType = .setsReps
             targetSets = sets
@@ -152,29 +215,28 @@ struct AddEditActivityView: View {
     }
 
     private func save() {
-        let resolvedSymbol = resolvedSymbolName
         let targetActivity: Activity
         if let activity {
             targetActivity = activity
             targetActivity.name = name
-            targetActivity.symbolName = resolvedSymbol
+            targetActivity.symbolName = symbolName
         } else {
-            targetActivity = Activity(name: name, symbolName: resolvedSymbol)
+            targetActivity = Activity(name: name, symbolName: symbolName)
             modelContext.insert(targetActivity)
         }
 
         targetActivity.targetType = targetType
         switch targetType {
         case .none:
-            targetActivity.targetDurationMinutes = nil
+            targetActivity.targetDurationSeconds = nil
             targetActivity.targetSets = nil
             targetActivity.targetReps = nil
         case .duration:
-            targetActivity.targetDurationMinutes = targetDurationMinutes
+            targetActivity.targetDurationSeconds = targetDurationSeconds
             targetActivity.targetSets = nil
             targetActivity.targetReps = nil
         case .setsReps:
-            targetActivity.targetDurationMinutes = nil
+            targetActivity.targetDurationSeconds = nil
             targetActivity.targetSets = targetSets
             targetActivity.targetReps = targetReps
         }
@@ -191,8 +253,12 @@ struct AddEditActivityView: View {
                 existing.weekday = draft.weekday
                 existing.hour = draft.hour
                 existing.minute = draft.minute
+                existing.windowDurationMinutes = draft.windowDurationMinutes
             } else {
-                let newRule = ScheduleRule(weekday: draft.weekday, hour: draft.hour, minute: draft.minute)
+                let newRule = ScheduleRule(
+                    weekday: draft.weekday, hour: draft.hour, minute: draft.minute,
+                    windowDurationMinutes: draft.windowDurationMinutes
+                )
                 newRule.activity = targetActivity
                 targetActivity.scheduleRules.append(newRule)
             }
@@ -206,6 +272,22 @@ struct AddEditActivityView: View {
             await NotificationManager.ensureAuthorization()
         }
 
+        dismiss()
+    }
+
+    /// Real delete, distinct from the swipe-to-archive on the activities list:
+    /// resolved (completed/missed) occurrences are kept for History -- reading
+    /// from their own snapshot fields since `activity` will be nil -- but
+    /// occurrences that haven't happened yet are removed rather than left as
+    /// orphaned pending items nobody can act on.
+    private func deleteActivity() {
+        guard let activity else { return }
+        for occurrence in activity.occurrences where occurrence.status == .pending {
+            modelContext.delete(occurrence)
+        }
+        modelContext.delete(activity)
+        try? modelContext.save()
+        try? ScheduleEngine.syncNotifications(context: modelContext)
         dismiss()
     }
 }

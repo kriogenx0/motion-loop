@@ -9,6 +9,11 @@ struct TodayView: View {
     @State private var now = Date.now
     @State private var checkInOccurrence: ExerciseOccurrence?
 
+    @State private var dailyEncouragement = Encouragement.random(from: Encouragement.daily)
+    @State private var activeEncouragement = Encouragement.random(from: Encouragement.preActivity)
+    @State private var confettiTrigger = 0
+    @State private var completionMessage: String?
+
     private let timer = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
 
     init() {
@@ -36,6 +41,12 @@ struct TodayView: View {
     var body: some View {
         NavigationStack {
             List {
+                Text(dailyEncouragement)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .listRowSeparator(.hidden)
+
                 if occurrences.isEmpty {
                     ContentUnavailableView(
                         "Nothing Scheduled Today",
@@ -44,7 +55,7 @@ struct TodayView: View {
                     )
                 }
 
-                section("Active Now", items: activeNow, showActions: true)
+                section("Active Now", items: activeNow, showActions: true, note: activeEncouragement)
                 section("Upcoming", items: upcoming, showActions: false)
                 section("Completed", items: completed, showActions: false)
                 section("Missed", items: missed, showActions: false)
@@ -63,22 +74,44 @@ struct TodayView: View {
             .sheet(item: $checkInOccurrence) { occurrence in
                 CheckInSheet(
                     occurrence: occurrence,
-                    onComplete: { complete(occurrence) },
-                    onMissed: { markMissed(occurrence) }
+                    onComplete: { complete(occurrence) }
                 )
             }
+            .overlay {
+                ConfettiView(trigger: confettiTrigger)
+            }
+            .overlay(alignment: .top) {
+                if let completionMessage {
+                    Text(completionMessage)
+                        .font(.headline)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(.thinMaterial, in: Capsule())
+                        .shadow(radius: 4)
+                        .padding(.top, 8)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .allowsHitTesting(false)
+                }
+            }
+            .animation(.spring(duration: 0.4), value: completionMessage)
         }
     }
 
     @ViewBuilder
-    private func section(_ title: String, items: [ExerciseOccurrence], showActions: Bool) -> some View {
+    private func section(_ title: String, items: [ExerciseOccurrence], showActions: Bool, note: String? = nil) -> some View {
         if !items.isEmpty {
             Section(title) {
+                if let note {
+                    Text(note)
+                        .font(.caption)
+                        .foregroundStyle(.tint)
+                        .listRowSeparator(.hidden)
+                }
                 ForEach(items) { occurrence in
                     TodayOccurrenceRow(
                         occurrence: occurrence,
-                        onComplete: showActions ? { complete(occurrence) } : nil,
-                        onMissed: showActions ? { markMissed(occurrence) } : nil
+                        now: now,
+                        onComplete: showActions ? { complete(occurrence) } : nil
                     )
                 }
             }
@@ -95,11 +128,12 @@ struct TodayView: View {
         occurrence.status = .completed
         occurrence.respondedAt = .now
         try? modelContext.save()
+
+        confettiTrigger += 1
+        completionMessage = Encouragement.random(from: Encouragement.completion)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
+            completionMessage = nil
+        }
     }
 
-    private func markMissed(_ occurrence: ExerciseOccurrence) {
-        occurrence.status = .missed
-        occurrence.respondedAt = .now
-        try? modelContext.save()
-    }
 }

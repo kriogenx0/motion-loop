@@ -1,9 +1,12 @@
 import SwiftUI
 import SwiftData
 
-/// Section content for "Activity" mode -- every activity ever entered
-/// (including archived ones, since they're never hard-deleted), with its
-/// all-time completed/missed totals. Tapping a row navigates (via
+/// Section content for "Activity" mode -- every activity that still exists
+/// (archived ones included -- archiving just stops scheduling, it never
+/// deletes), with its all-time completed/missed totals. An activity the user
+/// actually deleted from AddEditActivityView no longer has a row here, though
+/// its resolved (completed/missed) occurrences still appear in Day/Week/Month
+/// history via their own snapshot fields. Tapping a row navigates (via
 /// `navigationDestination(for: Activity.self)`, wired up by HistoryView) into
 /// ActivityHistoryDetailView for that activity's full occurrence history.
 struct ActivityHistoryContent: View {

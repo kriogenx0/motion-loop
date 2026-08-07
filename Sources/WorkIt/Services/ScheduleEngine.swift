@@ -78,7 +78,10 @@ enum ScheduleEngine {
                 sourceRuleID: plan.ruleID,
                 ruleWeekday: plan.ruleWeekday,
                 ruleHour: plan.ruleHour,
-                ruleMinute: plan.ruleMinute
+                ruleMinute: plan.ruleMinute,
+                activityName: activity.name,
+                activitySymbolName: activity.symbolName,
+                activityTargetDescription: activity.targetDescription
             )
             occurrence.activity = activity
             context.insert(occurrence)

@@ -57,11 +57,21 @@ private struct ActivityOccurrenceRow: View {
         return formatter.string(from: occurrence.scheduledDate)
     }
 
+    private var completedTimeText: String? {
+        guard occurrence.status == .completed, let respondedAt = occurrence.respondedAt else { return nil }
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return "Completed \(formatter.string(from: respondedAt))"
+    }
+
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(dateText)
-                Text(timeText).font(.caption).foregroundStyle(.secondary)
+                Text("Scheduled \(timeText)").font(.caption).foregroundStyle(.secondary)
+                if let completedTimeText {
+                    Text(completedTimeText).font(.caption).foregroundStyle(.green)
+                }
             }
             Spacer()
             statusIcon

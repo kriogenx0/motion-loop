@@ -22,6 +22,15 @@ final class ExerciseOccurrence {
     var ruleHour: Int
     var ruleMinute: Int
 
+    /// Snapshot of the activity's display fields at the moment this occurrence
+    /// was created. Read by every view instead of `activity?.name` etc., so
+    /// renaming/re-iconing/deleting the Activity later never retroactively
+    /// changes how an already-generated occurrence reads, in Today or History --
+    /// mirrors the existing ruleWeekday/ruleHour/ruleMinute snapshot below.
+    var activityName: String
+    var activitySymbolName: String
+    var activityTargetDescription: String?
+
     var activity: Activity?
 
     init(
@@ -34,7 +43,10 @@ final class ExerciseOccurrence {
         sourceRuleID: UUID?,
         ruleWeekday: Int,
         ruleHour: Int,
-        ruleMinute: Int
+        ruleMinute: Int,
+        activityName: String,
+        activitySymbolName: String,
+        activityTargetDescription: String?
     ) {
         self.id = id
         self.scheduledDate = scheduledDate
@@ -46,6 +58,9 @@ final class ExerciseOccurrence {
         self.ruleWeekday = ruleWeekday
         self.ruleHour = ruleHour
         self.ruleMinute = ruleMinute
+        self.activityName = activityName
+        self.activitySymbolName = activitySymbolName
+        self.activityTargetDescription = activityTargetDescription
     }
 
     var status: OccurrenceStatus {

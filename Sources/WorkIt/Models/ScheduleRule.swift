@@ -12,8 +12,9 @@ final class ScheduleRule {
     var hour: Int
     var minute: Int
     var isEnabled: Bool
-    /// Fixed at 60 for v1 (the "up to one hour" requirement); stored rather than
-    /// hardcoded so a future version could make it user-editable without a migration.
+    /// How long after `hour:minute` the user has to mark this complete before
+    /// it's considered missed. User-editable per schedule entry in
+    /// ScheduleRuleEditorView (options: 15/30/45/60/90/120 minutes).
     var windowDurationMinutes: Int
 
     var activity: Activity?

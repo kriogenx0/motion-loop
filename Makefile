@@ -49,8 +49,9 @@ _generate:
 _ensure-device:
 	@if ! xcrun simctl list devices -j | jq -e --arg name "$(SIM_DEVICE_NAME)" '.devices | to_entries[] | .value[] | select(.name==$$name)' >/dev/null 2>&1; then \
 		echo "Creating simulator device '$(SIM_DEVICE_NAME)'..."; \
-		RUNTIME_ID=$$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.name | contains("iOS"))] | last | .identifier'); \
-		DEVICETYPE_ID=$$(xcrun simctl list devicetypes -j | jq -r '[.devicetypes[] | select(.name | contains("iPhone"))] | last | .identifier'); \
+		RUNTIME_JSON=$$(xcrun simctl list runtimes available -j | jq -c '[.runtimes[] | select(.name | contains("iOS"))] | last'); \
+		RUNTIME_ID=$$(echo "$$RUNTIME_JSON" | jq -r '.identifier'); \
+		DEVICETYPE_ID=$$(echo "$$RUNTIME_JSON" | jq -r '[.supportedDeviceTypes[] | select(.name | contains("iPhone"))] | first | .identifier'); \
 		if [ -z "$$RUNTIME_ID" ] || [ "$$RUNTIME_ID" = "null" ]; then \
 			echo "No iOS Simulator runtime available. Run 'make setup' first."; exit 1; \
 		fi; \

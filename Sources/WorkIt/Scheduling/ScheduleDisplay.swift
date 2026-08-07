@@ -43,4 +43,14 @@ enum ScheduleDisplay {
         }
         .sorted { ($0.hour, $0.minute) < ($1.hour, $1.minute) }
     }
+
+    /// Human label for one of the fixed window-duration choices offered in
+    /// ScheduleRuleEditorView -- e.g. 90 -> "1 hr 30 min".
+    static func windowDurationLabel(_ minutes: Int) -> String {
+        guard minutes >= 60 else { return "\(minutes) min" }
+        let hours = minutes / 60
+        let remainder = minutes % 60
+        let hourText = hours == 1 ? "1 hr" : "\(hours) hr"
+        return remainder == 0 ? hourText : "\(hourText) \(remainder) min"
+    }
 }

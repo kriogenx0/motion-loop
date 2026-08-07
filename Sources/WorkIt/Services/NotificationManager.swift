@@ -4,21 +4,21 @@ import UserNotifications
 enum NotificationManager {
     static let categoryIdentifier = "EXERCISE_CHECKIN"
     static let completeAction = "MARK_COMPLETE"
-    static let missedAction = "MARK_MISSED"
     /// Minutes after the window opens that the more insistent follow-up fires,
     /// if the user hasn't answered yet.
     static let reminderOffsetMinutes = 30
 
+    /// Only a "Mark Complete" action -- there's no "Didn't Do It" affordance
+    /// anywhere in the app. Not completing is the default outcome; the window
+    /// closing (OccurrenceReconciler) is what decides "missed", not the user
+    /// self-reporting a failure.
     static func registerCategories() {
         let complete = UNNotificationAction(
             identifier: completeAction, title: "Mark Complete", options: []
         )
-        let missed = UNNotificationAction(
-            identifier: missedAction, title: "Didn't Do It", options: [.destructive]
-        )
         let category = UNNotificationCategory(
             identifier: categoryIdentifier,
-            actions: [complete, missed],
+            actions: [complete],
             intentIdentifiers: [],
             options: []
         )

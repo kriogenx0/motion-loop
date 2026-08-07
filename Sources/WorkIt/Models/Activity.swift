@@ -13,14 +13,20 @@ final class Activity {
     /// reason ExerciseOccurrence.statusRaw is: SwiftData #Predicate filtering on
     /// custom enums is unreliable.
     var targetTypeRaw: String
-    var targetDurationMinutes: Int?
+    var targetDurationSeconds: Int?
     var targetSets: Int?
     var targetReps: Int?
 
     @Relationship(deleteRule: .cascade, inverse: \ScheduleRule.activity)
     var scheduleRules: [ScheduleRule] = []
 
-    @Relationship(deleteRule: .cascade, inverse: \ExerciseOccurrence.activity)
+    /// `.nullify`, not `.cascade`: deleting an Activity must not erase its
+    /// resolved (completed/missed) history. Callers that actually delete an
+    /// Activity are responsible for first deleting its still-`.pending`
+    /// occurrences (see AddEditActivityView.deleteActivity) -- the resolved
+    /// ones survive with `activity == nil`, reading from their own snapshot
+    /// fields (ExerciseOccurrence.activityName etc.) from then on.
+    @Relationship(deleteRule: .nullify, inverse: \ExerciseOccurrence.activity)
     var occurrences: [ExerciseOccurrence] = []
 
     init(
@@ -30,7 +36,7 @@ final class Activity {
         createdAt: Date = .now,
         isArchived: Bool = false,
         targetType: ActivityTargetType = .none,
-        targetDurationMinutes: Int? = nil,
+        targetDurationSeconds: Int? = nil,
         targetSets: Int? = nil,
         targetReps: Int? = nil
     ) {
@@ -40,7 +46,7 @@ final class Activity {
         self.createdAt = createdAt
         self.isArchived = isArchived
         self.targetTypeRaw = targetType.rawValue
-        self.targetDurationMinutes = targetDurationMinutes
+        self.targetDurationSeconds = targetDurationSeconds
         self.targetSets = targetSets
         self.targetReps = targetReps
     }
@@ -53,7 +59,7 @@ final class Activity {
     var targetDescription: String? {
         ActivityTargetFormatter.describe(
             type: targetType,
-            durationMinutes: targetDurationMinutes,
+            durationSeconds: targetDurationSeconds,
             sets: targetSets,
             reps: targetReps
         )

@@ -33,7 +33,9 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
                 return []
             }
         }
-        return [.banner, .sound, .badge]
+        // `.list` keeps the notification in Notification Center after the banner
+        // dismisses -- without it, foregrounded banners disappear without a trace.
+        return [.banner, .sound, .badge, .list]
     }
 
     func userNotificationCenter(
@@ -56,10 +58,6 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         switch response.actionIdentifier {
         case NotificationManager.completeAction:
             occurrence.status = .completed
-            occurrence.respondedAt = .now
-            try? context.save()
-        case NotificationManager.missedAction:
-            occurrence.status = .missed
             occurrence.respondedAt = .now
             try? context.save()
         case UNNotificationDefaultActionIdentifier:
@@ -108,7 +106,10 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
             sourceRuleID: rule.id,
             ruleWeekday: rule.weekday,
             ruleHour: rule.hour,
-            ruleMinute: rule.minute
+            ruleMinute: rule.minute,
+            activityName: activity.name,
+            activitySymbolName: activity.symbolName,
+            activityTargetDescription: activity.targetDescription
         )
         occurrence.activity = activity
         context.insert(occurrence)

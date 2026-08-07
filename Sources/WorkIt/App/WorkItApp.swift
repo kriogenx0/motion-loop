@@ -19,6 +19,17 @@ struct WorkItApp: App {
         // pending statuses for windows that already closed while the app was shut.
         let context = ModelContext(Persistence.container)
         try? ScheduleEngine.reconcileAndGenerate(context: context)
+
+        // Today is only useful once there's something to check in on -- a
+        // brand-new install with no activities yet should land on Activities
+        // instead of an empty Today screen.
+        router.selectedTab = Self.hasAnyScheduledActivity(context: context) ? .today : .activities
+    }
+
+    private static func hasAnyScheduledActivity(context: ModelContext) -> Bool {
+        let descriptor = FetchDescriptor<Activity>(predicate: #Predicate { $0.isArchived == false })
+        guard let activities = try? context.fetch(descriptor) else { return false }
+        return activities.contains { $0.scheduleRules.contains { $0.isEnabled } }
     }
 
     var body: some Scene {

@@ -27,7 +27,7 @@ struct ActivitiesListView: View {
                     }
                     .buttonStyle(.plain)
                     .swipeActions {
-                        Button("Remove", role: .destructive) {
+                        Button("Archive", role: .destructive) {
                             archive(activity)
                         }
                     }
