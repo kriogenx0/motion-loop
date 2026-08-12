@@ -1,5 +1,5 @@
 import XCTest
-@testable import WorkIt
+@testable import MotionLoop
 
 final class PresetActivitiesTests: XCTestCase {
     func testPresetsLoadFromBundledJSON() {

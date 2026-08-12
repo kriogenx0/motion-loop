@@ -1,12 +1,12 @@
 .DEFAULT_GOAL := all
 
-PROJECT := WorkIt.xcodeproj
-SCHEME := WorkIt
+PROJECT := MotionLoop.xcodeproj
+SCHEME := MotionLoop
 BUNDLE_ID := com.simplex0.workit
 DERIVED_DATA := .build/DerivedData
-SIM_DEVICE_NAME := WorkIt-Simulator
-APP_PATH := $(DERIVED_DATA)/Build/Products/Debug-iphonesimulator/WorkIt.app
-ARCHIVE_PATH := $(DERIVED_DATA)/Build/WorkIt.xcarchive
+SIM_DEVICE_NAME := MotionLoop-Simulator
+APP_PATH := $(DERIVED_DATA)/Build/Products/Debug-iphonesimulator/MotionLoop.app
+ARCHIVE_PATH := $(DERIVED_DATA)/Build/MotionLoop.xcarchive
 EXPORT_PATH := $(DERIVED_DATA)/Build/Export
 EXPORT_OPTIONS_PLIST := $(DERIVED_DATA)/Build/ExportOptions.plist
 
@@ -68,7 +68,7 @@ dev: _check-deps _check-runtime _generate _ensure-device
 	open -a Simulator --args -CurrentDeviceUDID "$$SIM_UDID"; \
 	xcrun simctl install "$$SIM_UDID" "$(APP_PATH)"; \
 	xcrun simctl launch "$$SIM_UDID" $(BUNDLE_ID); \
-	echo "WorkIt launched on $(SIM_DEVICE_NAME)."
+	echo "MotionLoop launched on $(SIM_DEVICE_NAME)."
 
 build: _generate
 	xcodebuild build -project $(PROJECT) -scheme $(SCHEME) -configuration Release \

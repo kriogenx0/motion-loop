@@ -1,6 +1,6 @@
-name: WorkIt
+name: MotionLoop
 options:
-  bundleIdPrefix: com.workit
+  bundleIdPrefix: com.motionloop
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -10,7 +10,7 @@ settings:
     SWIFT_VERSION: "5.0"
     GENERATE_INFOPLIST_FILE: YES
     INFOPLIST_KEY_UILaunchScreen_Generation: YES
-    INFOPLIST_KEY_CFBundleDisplayName: WorkIt
+    INFOPLIST_KEY_CFBundleDisplayName: MotionLoop
     INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
     INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
     TARGETED_DEVICE_FAMILY: "1"
@@ -19,24 +19,24 @@ settings:
     ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
 
 targets:
-  WorkIt:
+  MotionLoop:
     type: application
     platform: iOS
     sources:
-      - path: Sources/WorkIt
+      - path: Sources/MotionLoop
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.simplex0.workit
-        PRODUCT_NAME: WorkIt
+        PRODUCT_NAME: MotionLoop
     scheme:
       testTargets:
-        - WorkItTests
+        - MotionLoopTests
       gatherCoverageData: true
 
-  WorkItTests:
+  MotionLoopTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - path: Tests/WorkItTests
+      - path: Tests/MotionLoopTests
     dependencies:
-      - target: WorkIt
+      - target: MotionLoop

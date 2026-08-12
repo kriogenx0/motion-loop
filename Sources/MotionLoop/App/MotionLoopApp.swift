@@ -3,7 +3,7 @@ import SwiftData
 import UserNotifications
 
 @main
-struct WorkItApp: App {
+struct MotionLoopApp: App {
     @State private var router = AppRouter()
     @Environment(\.scenePhase) private var scenePhase
     private let notificationDelegate: NotificationDelegate
