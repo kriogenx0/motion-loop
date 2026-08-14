@@ -40,4 +40,15 @@ final class OccurrenceReconcilerTests: XCTestCase {
 
         XCTAssertTrue(changes.isEmpty)
     }
+
+    func testPendingOccurrenceWithNoWindowIsNeverFlippedRegardlessOfAge() {
+        // Reminder-type occurrences have no deadline at all -- not even a very
+        // old, never-answered one should ever become "missed".
+        let now = Date()
+        let veryOld = OccurrenceSnapshot(id: UUID(), windowEnd: nil, status: .pending)
+
+        let changes = OccurrenceReconciler.reconcile(occurrences: [veryOld], now: now)
+
+        XCTAssertTrue(changes.isEmpty)
+    }
 }

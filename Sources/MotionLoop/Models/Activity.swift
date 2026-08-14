@@ -17,8 +17,9 @@ final class Activity {
     var targetSets: Int?
     var targetReps: Int?
 
-    @Relationship(deleteRule: .cascade, inverse: \ScheduleRule.activity)
-    var scheduleRules: [ScheduleRule] = []
+    /// nil = freeform (no schedule, completable anytime). Non-nil Schedules may
+    /// be shared with other Activities, forming a "session" -- see Schedule.
+    var schedule: Schedule?
 
     /// `.nullify`, not `.cascade`: deleting an Activity must not erase its
     /// resolved (completed/missed) history. Callers that actually delete an
@@ -28,6 +29,11 @@ final class Activity {
     /// fields (ExerciseOccurrence.activityName etc.) from then on.
     @Relationship(deleteRule: .nullify, inverse: \ExerciseOccurrence.activity)
     var occurrences: [ExerciseOccurrence] = []
+
+    /// `.nullify`, same rationale as `occurrences`: bonus completions are
+    /// history and survive Activity deletion via their own snapshot fields.
+    @Relationship(deleteRule: .nullify, inverse: \BonusCompletion.activity)
+    var bonusCompletions: [BonusCompletion] = []
 
     init(
         id: UUID = UUID(),
@@ -63,5 +69,10 @@ final class Activity {
             sets: targetSets,
             reps: targetReps
         )
+    }
+
+    var effectiveMode: ActivityMode {
+        guard let schedule else { return .freeform }
+        return schedule.type == .window ? .window : .reminder
     }
 }

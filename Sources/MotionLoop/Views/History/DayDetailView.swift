@@ -19,9 +19,9 @@ struct DayDetailView: View {
         )
     }
 
-    private var missed: [ExerciseOccurrence] { occurrences.filter { $0.status == .missed } }
-    private var completed: [ExerciseOccurrence] { occurrences.filter { $0.status == .completed } }
-    private var pending: [ExerciseOccurrence] { occurrences.filter { $0.status == .pending } }
+    private var missed: [ExerciseOccurrence] { occurrences.filter { $0.effectiveStatus() == .missed } }
+    private var completed: [ExerciseOccurrence] { occurrences.filter { $0.effectiveStatus() == .completed } }
+    private var pending: [ExerciseOccurrence] { occurrences.filter { $0.effectiveStatus() == .pending } }
 
     private var dayTitle: String {
         let formatter = DateFormatter()

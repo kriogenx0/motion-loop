@@ -23,13 +23,19 @@ struct MotionLoopApp: App {
         // Today is only useful once there's something to check in on -- a
         // brand-new install with no activities yet should land on Activities
         // instead of an empty Today screen.
-        router.selectedTab = Self.hasAnyScheduledActivity(context: context) ? .today : .activities
+        router.selectedTab = Self.hasAnythingToShowToday(context: context) ? .today : .activities
     }
 
-    private static func hasAnyScheduledActivity(context: ModelContext) -> Bool {
+    /// True if any non-archived activity would show up on Today -- either a
+    /// freeform activity (always available in the "Anytime" section) or one
+    /// with at least one enabled scheduled time.
+    private static func hasAnythingToShowToday(context: ModelContext) -> Bool {
         let descriptor = FetchDescriptor<Activity>(predicate: #Predicate { $0.isArchived == false })
         guard let activities = try? context.fetch(descriptor) else { return false }
-        return activities.contains { $0.scheduleRules.contains { $0.isEnabled } }
+        return activities.contains { activity in
+            guard let schedule = activity.schedule else { return true }
+            return schedule.times.contains { $0.isEnabled }
+        }
     }
 
     var body: some Scene {

@@ -19,7 +19,7 @@ struct MonthHistoryContent: View {
     private var monthOccurrences: [SummarizableOccurrence] {
         allOccurrences
             .filter { monthInterval.contains($0.scheduledDate) }
-            .map { SummarizableOccurrence(scheduledDate: $0.scheduledDate, status: $0.status) }
+            .map { SummarizableOccurrence(scheduledDate: $0.scheduledDate, windowEnd: $0.windowEnd, status: $0.status) }
     }
 
     private var daySummaries: [DaySummary] {

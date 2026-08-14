@@ -51,4 +51,19 @@ final class ScheduleDisplayTests: XCTestCase {
         XCTAssertEqual(groups.count, 1)
         XCTAssertEqual(groups[0].weekdays, [2, 4])
     }
+
+    func testSessionTitleForOneActivity() {
+        XCTAssertEqual(ScheduleDisplay.sessionTitle(activityNames: ["Push-ups"]), "Push-ups")
+    }
+
+    func testSessionTitleForTwoActivities() {
+        XCTAssertEqual(ScheduleDisplay.sessionTitle(activityNames: ["Push-ups", "Crunches"]), "Push-ups & Crunches")
+    }
+
+    func testSessionTitleForThreeOrMoreActivities() {
+        XCTAssertEqual(
+            ScheduleDisplay.sessionTitle(activityNames: ["Push-ups", "Crunches", "Squats", "Lunges"]),
+            "Push-ups, Crunches & 2 more"
+        )
+    }
 }

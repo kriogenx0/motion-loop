@@ -1,16 +1,15 @@
 import Foundation
 
-/// Immutable snapshot of a ScheduleRule's fields, decoupled from SwiftData so the
+/// Immutable snapshot of a ScheduleTime's fields, decoupled from SwiftData so the
 /// scheduling math below can be pure Foundation code, testable with injected
 /// Calendar/TimeZone/Date.
-struct ScheduleRuleSnapshot: Hashable {
-    let ruleID: UUID
-    let activityID: UUID
+struct ScheduleTimeSnapshot: Hashable {
+    let scheduleTimeID: UUID
+    let scheduleID: UUID
     /// 1 = Sunday ... 7 = Saturday
     let weekday: Int
     let hour: Int
     let minute: Int
-    let windowDurationMinutes: Int
 }
 
 enum ScheduleMath {
@@ -19,7 +18,7 @@ enum ScheduleMath {
     /// `nextDate(matching:)`, whose multi-component matching has surprising edge
     /// cases -- this keeps DST behavior explicit and easy to unit test.
     static func nextOccurrenceDates(
-        for rule: ScheduleRuleSnapshot,
+        for rule: ScheduleTimeSnapshot,
         after date: Date,
         count: Int,
         calendar: Calendar = .current

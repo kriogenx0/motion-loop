@@ -1,13 +1,50 @@
 import SwiftUI
 import SwiftData
 
-private struct RuleDraft: Identifiable {
-    let id: UUID
-    let persistedID: UUID?
-    var weekday: Int
-    var hour: Int
-    var minute: Int
-    var windowDurationMinutes: Int
+/// A schedule being built or reused for this activity. `existingSchedule` is
+/// non-nil whenever it points at a real, already-persisted Schedule (whether
+/// authored earlier for this same activity or picked from
+/// ExistingScheduleListView) -- `save()` mutates that same object in place
+/// rather than creating a new one, which is exactly what makes editing a
+/// shared schedule propagate to every activity using it. `nil` means freeform.
+private struct ScheduleDraft {
+    var existingSchedule: Schedule?
+    var type: ScheduleType
+    var weekdays: Set<Int>
+    var times: [(hour: Int, minute: Int)]
+    var windowDurationMinutes: Int?
+    var minimumGapMinutes: Int?
+    var leadTimeMinutes: Int?
+
+    /// Reconstructs a draft from a persisted Schedule. All times on a Schedule
+    /// share one weekday set by construction (see ScheduleAuthoringView), so
+    /// reading back just one representative weekday's times is faithful.
+    init(from schedule: Schedule) {
+        let weekdays = Set(schedule.times.map(\.weekday))
+        let representativeWeekday = weekdays.min() ?? 1
+        let times = schedule.times
+            .filter { $0.weekday == representativeWeekday }
+            .map { (hour: $0.hour, minute: $0.minute) }
+            .sorted { ($0.hour, $0.minute) < ($1.hour, $1.minute) }
+        self.init(
+            existingSchedule: schedule, type: schedule.type, weekdays: weekdays, times: times,
+            windowDurationMinutes: schedule.windowDurationMinutes, minimumGapMinutes: schedule.minimumGapMinutes,
+            leadTimeMinutes: schedule.leadTimeMinutes
+        )
+    }
+
+    init(
+        existingSchedule: Schedule?, type: ScheduleType, weekdays: Set<Int>, times: [(hour: Int, minute: Int)],
+        windowDurationMinutes: Int?, minimumGapMinutes: Int?, leadTimeMinutes: Int?
+    ) {
+        self.existingSchedule = existingSchedule
+        self.type = type
+        self.weekdays = weekdays
+        self.times = times
+        self.windowDurationMinutes = windowDurationMinutes
+        self.minimumGapMinutes = minimumGapMinutes
+        self.leadTimeMinutes = leadTimeMinutes
+    }
 }
 
 struct AddEditActivityView: View {
@@ -18,9 +55,8 @@ struct AddEditActivityView: View {
 
     @State private var name: String
     @State private var symbolName: String
-    @State private var rules: [RuleDraft]
-    @State private var isPresentingRuleEditor = false
-    @State private var editingGroup: ScheduleTimeGroup?
+    @State private var scheduleDraft: ScheduleDraft?
+    @State private var isPresentingScheduleAuthor = false
     @State private var isPresentingDeleteConfirm = false
 
     @State private var targetType: ActivityTargetType
@@ -32,14 +68,7 @@ struct AddEditActivityView: View {
         self.activity = activity
         _name = State(initialValue: activity?.name ?? "")
         _symbolName = State(initialValue: activity?.symbolName ?? PresetActivities.customSymbolName)
-        _rules = State(initialValue: (activity?.scheduleRules ?? [])
-            .sorted { ($0.weekday, $0.hour, $0.minute) < ($1.weekday, $1.hour, $1.minute) }
-            .map {
-                RuleDraft(
-                    id: $0.id, persistedID: $0.id, weekday: $0.weekday, hour: $0.hour, minute: $0.minute,
-                    windowDurationMinutes: $0.windowDurationMinutes
-                )
-            })
+        _scheduleDraft = State(initialValue: activity?.schedule.map(ScheduleDraft.init(from:)))
         _targetType = State(initialValue: activity?.targetType ?? .none)
         _targetDurationSeconds = State(initialValue: activity?.targetDurationSeconds ?? 600)
         _targetSets = State(initialValue: activity?.targetSets ?? 3)
@@ -47,15 +76,33 @@ struct AddEditActivityView: View {
     }
 
     private var isSaveDisabled: Bool {
-        name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || rules.isEmpty
-    }
-
-    private var scheduleGroups: [ScheduleTimeGroup] {
-        ScheduleDisplay.groups(from: rules.map { ($0.weekday, $0.hour, $0.minute) })
+        name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var durationLabel: String {
         ActivityTargetFormatter.formatDuration(targetDurationSeconds)
+    }
+
+    private var sharedWithCount: Int {
+        guard let existing = scheduleDraft?.existingSchedule else { return 0 }
+        return existing.activities.filter { $0.id != activity?.id }.count
+    }
+
+    private var scheduleSummaryLines: [String] {
+        guard let draft = scheduleDraft else { return [] }
+        let entries = draft.weekdays.sorted().flatMap { weekday in
+            draft.times.map { (weekday: weekday, hour: $0.hour, minute: $0.minute) }
+        }
+        var lines = ScheduleDisplay.groups(from: entries).map(\.displayText)
+        if draft.type == .window, let window = draft.windowDurationMinutes {
+            lines.append("Window: \(ScheduleDisplay.windowDurationLabel(window))")
+        } else if draft.type == .reminder, let gap = draft.minimumGapMinutes {
+            lines.append("Minimum gap: \(ScheduleDisplay.windowDurationLabel(gap))")
+        }
+        if let lead = draft.leadTimeMinutes {
+            lines.append("Reminds \(lead) min before")
+        }
+        return lines
     }
 
     var body: some View {
@@ -98,36 +145,7 @@ struct AddEditActivityView: View {
                     }
                 }
 
-                Section("Schedule") {
-                    if rules.isEmpty {
-                        Text("No schedule yet -- add at least one.").foregroundStyle(.secondary)
-                    }
-                    ForEach(scheduleGroups) { group in
-                        Button {
-                            editingGroup = group
-                            isPresentingRuleEditor = true
-                        } label: {
-                            HStack {
-                                Text(group.displayText)
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                Text(ScheduleDisplay.windowDurationLabel(windowDuration(for: group)))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .onDelete { indexSet in
-                        let groupsToRemove = indexSet.map { scheduleGroups[$0] }
-                        rules.removeAll { rule in
-                            groupsToRemove.contains { $0.hour == rule.hour && $0.minute == rule.minute }
-                        }
-                    }
-                    Button("Add Schedule") {
-                        editingGroup = nil
-                        isPresentingRuleEditor = true
-                    }
-                }
+                scheduleSection
 
                 if activity != nil {
                     Section {
@@ -146,30 +164,23 @@ struct AddEditActivityView: View {
                     Button("Save") { save() }.disabled(isSaveDisabled)
                 }
             }
-            .sheet(isPresented: $isPresentingRuleEditor) {
-                ScheduleRuleEditorView(
-                    initial: editingGroup.map {
-                        ScheduleRuleEditorView.InitialValue(
-                            weekdays: $0.weekdays, hour: $0.hour, minute: $0.minute,
-                            windowDurationMinutes: windowDuration(for: $0)
+            .sheet(isPresented: $isPresentingScheduleAuthor) {
+                ScheduleAuthoringView(
+                    initial: scheduleDraft.map {
+                        ScheduleAuthoringView.InitialValue(
+                            type: $0.type, weekdays: $0.weekdays, times: $0.times,
+                            windowDurationMinutes: $0.windowDurationMinutes, minimumGapMinutes: $0.minimumGapMinutes,
+                            leadTimeMinutes: $0.leadTimeMinutes
                         )
-                    }
-                ) { weekdays, times, windowDurationMinutes in
-                    if let editingGroup {
-                        rules.removeAll { $0.hour == editingGroup.hour && $0.minute == editingGroup.minute }
-                    }
-                    for weekday in weekdays.sorted() {
-                        for time in times {
-                            let alreadyExists = rules.contains {
-                                $0.weekday == weekday && $0.hour == time.hour && $0.minute == time.minute
-                            }
-                            guard !alreadyExists else { continue }
-                            rules.append(RuleDraft(
-                                id: UUID(), persistedID: nil, weekday: weekday, hour: time.hour, minute: time.minute,
-                                windowDurationMinutes: windowDurationMinutes
-                            ))
-                        }
-                    }
+                    },
+                    sharedWithCount: sharedWithCount
+                ) { weekdays, times, type, windowDurationMinutes, minimumGapMinutes, leadTimeMinutes in
+                    scheduleDraft = ScheduleDraft(
+                        existingSchedule: scheduleDraft?.existingSchedule,
+                        type: type, weekdays: weekdays, times: times,
+                        windowDurationMinutes: windowDurationMinutes, minimumGapMinutes: minimumGapMinutes,
+                        leadTimeMinutes: leadTimeMinutes
+                    )
                 }
             }
             .confirmationDialog(
@@ -185,8 +196,40 @@ struct AddEditActivityView: View {
         }
     }
 
-    private func windowDuration(for group: ScheduleTimeGroup) -> Int {
-        rules.first { $0.hour == group.hour && $0.minute == group.minute }?.windowDurationMinutes ?? 60
+    @ViewBuilder
+    private var scheduleSection: some View {
+        Section("Schedule") {
+            if let draft = scheduleDraft {
+                ForEach(scheduleSummaryLines, id: \.self) { line in
+                    Text(line)
+                }
+                if let existing = draft.existingSchedule, sharedWithCount > 0 {
+                    let names = existing.activities.filter { $0.id != activity?.id }.map(\.name)
+                    Text("Shared with \(names.joined(separator: ", "))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Button("Edit Schedule") { isPresentingScheduleAuthor = true }
+                NavigationLink("Use a Different Existing Schedule") {
+                    ExistingScheduleListView(excludingActivityID: activity?.id) { schedule in
+                        scheduleDraft = ScheduleDraft(from: schedule)
+                    }
+                }
+                Button("Remove Schedule (Freeform)", role: .destructive) {
+                    scheduleDraft = nil
+                }
+            } else {
+                Button("Add Schedule") { isPresentingScheduleAuthor = true }
+                NavigationLink("Use Existing Schedule") {
+                    ExistingScheduleListView(excludingActivityID: activity?.id) { schedule in
+                        scheduleDraft = ScheduleDraft(from: schedule)
+                    }
+                }
+                Text("No schedule -- freeform, complete anytime.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     private func applySuggestion(_ suggestion: ActivitySuggestion) {
@@ -229,30 +272,42 @@ struct AddEditActivityView: View {
             targetActivity.targetReps = targetReps
         }
 
-        let keptPersistedIDs = Set(rules.compactMap(\.persistedID))
-        for existingRule in targetActivity.scheduleRules where !keptPersistedIDs.contains(existingRule.id) {
-            modelContext.delete(existingRule)
-        }
-        targetActivity.scheduleRules.removeAll { !keptPersistedIDs.contains($0.id) }
-
-        for draft in rules {
-            if let persistedID = draft.persistedID,
-               let existing = targetActivity.scheduleRules.first(where: { $0.id == persistedID }) {
-                existing.weekday = draft.weekday
-                existing.hour = draft.hour
-                existing.minute = draft.minute
-                existing.windowDurationMinutes = draft.windowDurationMinutes
+        if let draft = scheduleDraft {
+            let schedule: Schedule
+            if let existing = draft.existingSchedule {
+                schedule = existing
             } else {
-                let newRule = ScheduleRule(
-                    weekday: draft.weekday, hour: draft.hour, minute: draft.minute,
-                    windowDurationMinutes: draft.windowDurationMinutes
-                )
-                newRule.activity = targetActivity
-                targetActivity.scheduleRules.append(newRule)
+                schedule = Schedule(type: draft.type)
+                modelContext.insert(schedule)
             }
+            schedule.type = draft.type
+            schedule.windowDurationMinutes = draft.windowDurationMinutes
+            schedule.minimumGapMinutes = draft.minimumGapMinutes
+            schedule.leadTimeMinutes = draft.leadTimeMinutes
+
+            // ScheduleTime rows are cheap and not referenced by any live
+            // relationship from ExerciseOccurrence (sourceScheduleTimeID is a
+            // plain UUID), so a full delete-and-recreate on every save is
+            // simpler and just as safe as diffing them.
+            for time in schedule.times {
+                modelContext.delete(time)
+            }
+            schedule.times.removeAll()
+            for weekday in draft.weekdays.sorted() {
+                for time in draft.times {
+                    let newTime = ScheduleTime(weekday: weekday, hour: time.hour, minute: time.minute)
+                    newTime.schedule = schedule
+                    schedule.times.append(newTime)
+                }
+            }
+
+            targetActivity.schedule = schedule
+        } else {
+            targetActivity.schedule = nil
         }
 
         try? modelContext.save()
+        try? ScheduleEngine.pruneOrphanedSchedules(context: modelContext)
         try? ScheduleEngine.reconcileAndGenerate(context: modelContext)
         try? ScheduleEngine.syncNotifications(context: modelContext)
 
@@ -275,6 +330,7 @@ struct AddEditActivityView: View {
         }
         modelContext.delete(activity)
         try? modelContext.save()
+        try? ScheduleEngine.pruneOrphanedSchedules(context: modelContext)
         try? ScheduleEngine.syncNotifications(context: modelContext)
         dismiss()
     }

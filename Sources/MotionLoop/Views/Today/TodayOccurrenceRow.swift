@@ -8,16 +8,19 @@ struct TodayOccurrenceRow: View {
     private var timeRangeText: String {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
-        return "\(formatter.string(from: occurrence.scheduledDate)) - \(formatter.string(from: occurrence.windowEnd))"
+        guard let windowEnd = occurrence.windowEnd else {
+            return formatter.string(from: occurrence.scheduledDate)
+        }
+        return "\(formatter.string(from: occurrence.scheduledDate)) - \(formatter.string(from: windowEnd))"
     }
 
-    /// Only meaningful while the window is actually open -- otherwise "minutes
-    /// left" would either be negative or describe a window that hasn't started.
+    /// Only meaningful for a window-type occurrence whose window is actually
+    /// open -- reminder-type has no deadline to count down to.
     private var minutesLeftText: String? {
-        guard occurrence.status == .pending, now >= occurrence.scheduledDate, now < occurrence.windowEnd else {
-            return nil
-        }
-        let minutes = max(1, Int(occurrence.windowEnd.timeIntervalSince(now) / 60))
+        guard let windowEnd = occurrence.windowEnd,
+              occurrence.status == .pending, now >= occurrence.scheduledDate, now < windowEnd
+        else { return nil }
+        let minutes = max(1, Int(windowEnd.timeIntervalSince(now) / 60))
         return minutes == 1 ? "1 min left" : "\(minutes) min left"
     }
 
@@ -78,7 +81,10 @@ struct TodayOccurrenceRow: View {
 
     @ViewBuilder
     private var statusIcon: some View {
-        switch occurrence.status {
+        // effectiveStatus, not raw status: an old, never-answered reminder-type
+        // occurrence reads as missed here (History/Day views) without its
+        // stored status ever having been mutated -- see OccurrenceDisplay.
+        switch occurrence.effectiveStatus(now: now) {
         case .completed:
             Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
         case .missed:

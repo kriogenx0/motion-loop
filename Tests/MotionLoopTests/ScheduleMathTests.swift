@@ -21,7 +21,7 @@ final class ScheduleMathTests: XCTestCase {
     func testNextOccurrenceDateMatchesWeekdayAndTime() {
         // Wednesday June 4, 2025 -- look for the next Monday (weekday = 2) at 7:00am.
         let after = date(2025, 6, 4, 12, 0)
-        let rule = ScheduleRuleSnapshot(ruleID: UUID(), activityID: UUID(), weekday: 2, hour: 7, minute: 0, windowDurationMinutes: 60)
+        let rule = ScheduleTimeSnapshot(scheduleTimeID: UUID(), scheduleID: UUID(), weekday: 2, hour: 7, minute: 0)
 
         let results = ScheduleMath.nextOccurrenceDates(for: rule, after: after, count: 1, calendar: calendar)
 
@@ -35,7 +35,7 @@ final class ScheduleMathTests: XCTestCase {
 
     func testNextOccurrenceDatesReturnsWeeklyRecurrences() {
         let after = date(2025, 6, 1, 0, 0)
-        let rule = ScheduleRuleSnapshot(ruleID: UUID(), activityID: UUID(), weekday: 3, hour: 9, minute: 30, windowDurationMinutes: 60)
+        let rule = ScheduleTimeSnapshot(scheduleTimeID: UUID(), scheduleID: UUID(), weekday: 3, hour: 9, minute: 30)
 
         let results = ScheduleMath.nextOccurrenceDates(for: rule, after: after, count: 4, calendar: calendar)
 
@@ -49,7 +49,7 @@ final class ScheduleMathTests: XCTestCase {
     func testNextOccurrenceDatesAreStrictlyAfterReferenceDate() {
         // If "after" is exactly the scheduled moment, that same instant should not be returned again.
         let exact = date(2025, 6, 2, 7, 0) // a Monday
-        let rule = ScheduleRuleSnapshot(ruleID: UUID(), activityID: UUID(), weekday: 2, hour: 7, minute: 0, windowDurationMinutes: 60)
+        let rule = ScheduleTimeSnapshot(scheduleTimeID: UUID(), scheduleID: UUID(), weekday: 2, hour: 7, minute: 0)
 
         let results = ScheduleMath.nextOccurrenceDates(for: rule, after: exact, count: 1, calendar: calendar)
 
@@ -89,7 +89,7 @@ final class ScheduleMathTests: XCTestCase {
         // US spring-forward in 2025 is March 9. Ask for Sundays (weekday=1) at 2:30am,
         // a wall-clock time that doesn't exist on the transition day itself.
         let after = date(2025, 3, 1, 0, 0)
-        let rule = ScheduleRuleSnapshot(ruleID: UUID(), activityID: UUID(), weekday: 1, hour: 2, minute: 30, windowDurationMinutes: 60)
+        let rule = ScheduleTimeSnapshot(scheduleTimeID: UUID(), scheduleID: UUID(), weekday: 1, hour: 2, minute: 30)
 
         let results = ScheduleMath.nextOccurrenceDates(for: rule, after: after, count: 3, calendar: calendar)
 

@@ -12,13 +12,18 @@ struct DaySummary: Identifiable {
 /// Minimal occurrence view needed to build day summaries, decoupled from SwiftData.
 struct SummarizableOccurrence {
     let scheduledDate: Date
+    let windowEnd: Date?
     let status: OccurrenceStatus
 }
 
 enum WeeklyStats {
     /// Buckets occurrences by calendar day, computing done/missed/pending/upcoming
-    /// counts per day. `pending` occurrences whose window is still open count as
-    /// "pending"; ones whose window is in the future count as "upcoming".
+    /// counts per day. `pending` occurrences whose window is still open (or that
+    /// have no window/deadline at all) count as "pending" on today or a future
+    /// day, "upcoming" if later today's time hasn't arrived yet, and -- for a
+    /// no-window (reminder-type) occurrence on a past day that was never
+    /// answered -- "missed", matching OccurrenceDisplay.effectiveStatus so
+    /// History and streaks never disagree about a given day.
     static func daySummaries(
         for occurrences: [SummarizableOccurrence],
         in interval: DateInterval,
@@ -42,7 +47,17 @@ enum WeeklyStats {
                 case .completed: completed += 1
                 case .missed: missed += 1
                 case .pending:
-                    if occurrence.scheduledDate > now { upcoming += 1 } else { pending += 1 }
+                    let effective = OccurrenceDisplay.effectiveStatus(
+                        status: .pending, scheduledDate: occurrence.scheduledDate,
+                        windowEnd: occurrence.windowEnd, now: now, calendar: calendar
+                    )
+                    if effective == .missed {
+                        missed += 1
+                    } else if occurrence.scheduledDate > now {
+                        upcoming += 1
+                    } else {
+                        pending += 1
+                    }
                 }
             }
             days.append(DaySummary(day: cursor, completed: completed, missed: missed, pending: pending, upcoming: upcoming))

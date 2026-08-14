@@ -63,10 +63,25 @@ private struct ActivityRow: View {
     let activity: Activity
 
     private var scheduleSummary: String {
-        let enabledRules = activity.scheduleRules.filter(\.isEnabled)
-        guard !enabledRules.isEmpty else { return "No schedule set" }
-        let groups = ScheduleDisplay.groups(from: enabledRules.map { ($0.weekday, $0.hour, $0.minute) })
-        return groups.map(\.displayText).joined(separator: ", ")
+        guard let schedule = activity.schedule else { return "Freeform \u{2014} complete anytime" }
+        let enabledTimes = schedule.times.filter(\.isEnabled)
+        guard !enabledTimes.isEmpty else { return "No schedule set" }
+        let groups = ScheduleDisplay.groups(from: enabledTimes.map { ($0.weekday, $0.hour, $0.minute) })
+        let timesText = groups.map(\.displayText).joined(separator: ", ")
+        switch schedule.type {
+        case .window:
+            return timesText
+        case .reminder:
+            let gap = schedule.minimumGapMinutes.map { ", \u{2265}\(ScheduleDisplay.windowDurationLabel($0)) apart" } ?? ""
+            return "\(timesText)\(gap)"
+        }
+    }
+
+    private var streak: Int {
+        let occurrences = activity.occurrences.map {
+            StreakCalculator.StreakOccurrence(scheduledDate: $0.scheduledDate, status: $0.effectiveStatus())
+        }
+        return StreakCalculator.currentStreak(occurrences: occurrences, hasSchedule: activity.schedule != nil, today: .now, now: .now)
     }
 
     var body: some View {
@@ -85,6 +100,11 @@ private struct ActivityRow: View {
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(Color.secondary.opacity(0.15), in: Capsule())
+                    }
+                    if streak > 0 {
+                        Text("\(StreakDisplay.flames(for: streak)) \(streak)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.orange)
                     }
                 }
                 Text(scheduleSummary).font(.caption).foregroundStyle(.secondary)

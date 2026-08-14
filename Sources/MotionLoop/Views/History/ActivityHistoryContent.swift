@@ -30,8 +30,8 @@ struct ActivityHistoryContent: View {
 private struct ActivityHistoryRow: View {
     let activity: Activity
 
-    private var completed: Int { activity.occurrences.filter { $0.status == .completed }.count }
-    private var missed: Int { activity.occurrences.filter { $0.status == .missed }.count }
+    private var completed: Int { activity.occurrences.filter { $0.effectiveStatus() == .completed }.count }
+    private var missed: Int { activity.occurrences.filter { $0.effectiveStatus() == .missed }.count }
     private var total: Int { completed + missed }
 
     var body: some View {

@@ -1,7 +1,7 @@
 import Foundation
 
 /// A single time-of-day with the set of weekdays it applies to, used to present
-/// several one-weekday-one-time ScheduleRules as the "3x a day" / "3x a week"
+/// several one-weekday-one-time ScheduleTimes as the "3x a day" / "3x a week"
 /// groupings a user actually thinks in, without changing how they're stored.
 struct ScheduleTimeGroup: Identifiable, Equatable {
     let id: String
@@ -44,13 +44,28 @@ enum ScheduleDisplay {
         .sorted { ($0.hour, $0.minute) < ($1.hour, $1.minute) }
     }
 
-    /// Human label for one of the fixed window-duration choices offered in
-    /// ScheduleRuleEditorView -- e.g. 90 -> "1 hr 30 min".
+    /// Human label for one of the fixed duration choices offered in
+    /// ScheduleAuthoringView -- e.g. 90 -> "1 hr 30 min". Shared by the
+    /// window-duration and minimum-gap pickers.
     static func windowDurationLabel(_ minutes: Int) -> String {
         guard minutes >= 60 else { return "\(minutes) min" }
         let hours = minutes / 60
         let remainder = minutes % 60
         let hourText = hours == 1 ? "1 hr" : "\(hours) hr"
         return remainder == 0 ? hourText : "\(hourText) \(remainder) min"
+    }
+
+    /// Title for a notification/SessionView covering one or more activities
+    /// that share a Schedule -- "Push-ups" / "Push-ups & Crunches" /
+    /// "Push-ups, Crunches & 2 more".
+    static func sessionTitle(activityNames: [String]) -> String {
+        switch activityNames.count {
+        case 0: return "Session"
+        case 1: return activityNames[0]
+        case 2: return "\(activityNames[0]) & \(activityNames[1])"
+        default:
+            let extra = activityNames.count - 2
+            return "\(activityNames[0]), \(activityNames[1]) & \(extra) more"
+        }
     }
 }
