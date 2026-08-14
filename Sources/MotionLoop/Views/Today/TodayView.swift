@@ -74,11 +74,13 @@ struct TodayView: View {
                     .listRowSeparator(.hidden)
 
                 if occurrences.isEmpty && freeformActivities.isEmpty {
-                    ContentUnavailableView(
-                        "Nothing Scheduled Today",
-                        systemImage: "checkmark.circle",
-                        description: Text("Add an activity with a schedule to see it here.")
-                    )
+                    Section {
+                        ContentUnavailableView(
+                            "Nothing Scheduled Today",
+                            systemImage: "checkmark.circle",
+                            description: Text("Add an activity with a schedule to see it here.")
+                        )
+                    }
                 }
 
                 anytimeSection

@@ -26,7 +26,7 @@ targets:
       - path: Sources/MotionLoop
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.simplex0.workit
+        PRODUCT_BUNDLE_IDENTIFIER: com.simplex0.motionloop
         PRODUCT_NAME: MotionLoop
     scheme:
       testTargets:

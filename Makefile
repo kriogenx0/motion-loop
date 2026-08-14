@@ -2,7 +2,7 @@
 
 PROJECT := MotionLoop.xcodeproj
 SCHEME := MotionLoop
-BUNDLE_ID := com.simplex0.workit
+BUNDLE_ID := com.simplex0.motionloop
 DERIVED_DATA := .build/DerivedData
 SIM_DEVICE_NAME := MotionLoop-Simulator
 APP_PATH := $(DERIVED_DATA)/Build/Products/Debug-iphonesimulator/MotionLoop.app
